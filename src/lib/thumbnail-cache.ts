@@ -30,14 +30,30 @@ export async function getCachedThumbnail(
 ): Promise<CachedThumbnail | null> {
   try {
     const db = await getDB()
-    return new Promise((resolve) => {
+    const result = await new Promise<CachedThumbnail | null>((resolve) => {
       const tx = db.transaction(STORE_NAME, 'readonly')
       const req = tx.objectStore(STORE_NAME).get(key)
       req.onsuccess = () => resolve(req.result ?? null)
       req.onerror = () => resolve(null)
     })
+    // Purge corrupt entries (blank/tiny data URLs)
+    if (result && result.dataUrl.length < 200) {
+      await deleteCachedThumbnail(key)
+      return null
+    }
+    return result
   } catch {
     return null
+  }
+}
+
+export async function deleteCachedThumbnail(key: string): Promise<void> {
+  try {
+    const db = await getDB()
+    const tx = db.transaction(STORE_NAME, 'readwrite')
+    tx.objectStore(STORE_NAME).delete(key)
+  } catch {
+    // ignore
   }
 }
 

@@ -1,6 +1,8 @@
 import { useCallback, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { invoke } from '@tauri-apps/api/core'
 import { useTextbooks } from '../hooks/useTextbooks'
+import { useDirectories } from '../hooks/useDirectories'
 import { useProgress } from '../hooks/useProgress'
 import { useStarred } from '../hooks/useStarred'
 import { useVimOverview } from '../hooks/useVimOverview'
@@ -9,6 +11,7 @@ import { BookTile } from '../components/BookTile'
 import { ContextMenu } from '../components/ContextMenu'
 import type { MenuItem } from '../components/ContextMenu'
 import { ThemeToggle } from '../components/ThemeToggle'
+import { DirectoryExplorer } from '../components/DirectoryExplorer'
 
 interface MenuState {
   x: number
@@ -17,7 +20,8 @@ interface MenuState {
 }
 
 export function OverviewPage() {
-  const textbooks = useTextbooks()
+  const { textbooks, loading, refresh } = useTextbooks()
+  const { directories, add: addDir, remove: removeDir } = useDirectories()
   const { progress, update } = useProgress()
   const { starred, toggle } = useStarred()
   const gridRef = useRef<HTMLDivElement>(null)
@@ -26,6 +30,7 @@ export function OverviewPage() {
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [filterOpen, setFilterOpen] = useState(false)
   const [filterQuery, setFilterQuery] = useState('')
+  const [explorerOpen, setExplorerOpen] = useState(false)
   const filterInputRef = useRef<HTMLInputElement>(null)
 
   const matchesFilter = (title: string) =>
@@ -52,6 +57,19 @@ export function OverviewPage() {
 
   const closeMenu = useCallback(() => setMenu(null), [])
 
+  const handleAddDir = useCallback(async () => {
+    const dir = await addDir()
+    if (dir) refresh()
+  }, [addDir, refresh])
+
+  const handleRemoveDir = useCallback(
+    async (id: number) => {
+      await removeDir(id)
+      refresh()
+    },
+    [removeDir, refresh],
+  )
+
   const menuItems: MenuItem[] = menu
     ? (() => {
         const book = textbooks.find((b) => b.slug === menu.slug)
@@ -68,39 +86,57 @@ export function OverviewPage() {
           },
           {
             label: 'Rename',
-            action: () => {
+            action: async () => {
               const newName = prompt('New name:', book.title)
               if (!newName || newName.trim() === book.title) return
-              fetch('/__textbooks/rename', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ file: book.file, newName: newName.trim() }),
-              })
+              try {
+                await invoke('rename_textbook', {
+                  fullPath: book.full_path,
+                  newName: newName.trim(),
+                })
+                refresh()
+              } catch (err) {
+                console.error('Rename failed:', err)
+              }
             },
           },
           {
             label: 'Delete',
-            action: () => {
+            action: async () => {
               if (!confirm(`Delete "${book.title}"?`)) return
-              fetch('/__textbooks/delete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ file: book.file }),
-              })
+              try {
+                await invoke('delete_textbook', { fullPath: book.full_path })
+                refresh()
+              } catch (err) {
+                console.error('Delete failed:', err)
+              }
             },
           },
         ]
       })()
     : []
 
-  if (textbooks.length === 0) {
+  if (!loading && directories.length === 0) {
     return (
-      <div className="flex h-screen items-center justify-center text-gray-500 dark:text-gray-400 dark:bg-gray-900">
-        <p>
-          No textbooks found. Drop PDF files into{' '}
-          <code className="rounded bg-gray-200 px-1 dark:bg-gray-700">public/textbooks/</code>{' '}
-          to get started.
-        </p>
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-white dark:bg-gray-900">
+        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300 dark:text-gray-600">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+        </svg>
+        <p className="text-gray-500 dark:text-gray-400">No directories attached</p>
+        <button
+          onClick={handleAddDir}
+          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+        >
+          Attach Directory
+        </button>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-1 items-center justify-center bg-white dark:bg-gray-900">
+        <p className="text-gray-500 dark:text-gray-400">Loading...</p>
       </div>
     )
   }
@@ -111,6 +147,7 @@ export function OverviewPage() {
       slug={book.slug}
       title={book.title}
       file={book.file}
+      fullPath={book.full_path}
       progress={progress[book.slug]}
       starred={!!starred[book.slug]}
       selected={selectedIndex === flatIndex}
@@ -125,63 +162,8 @@ export function OverviewPage() {
   )
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900">
-      <header className="sticky top-0 z-10 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900">
-        <div className="flex items-center">
-          <h1 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
-            <img src="/axiomatic.png" alt="" className="h-6 w-6" />
-            Axiomatic
-          </h1>
-          <div className="ml-auto flex items-center gap-1">
-            {filterOpen ? (
-              <div className="relative flex items-center">
-                <input
-                  ref={filterInputRef}
-                  type="text"
-                  value={filterQuery}
-                  onChange={(e) => setFilterQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      setFilterQuery('')
-                      setFilterOpen(false)
-                    }
-                  }}
-                  placeholder="Filter books…"
-                  className="h-7 w-48 rounded border border-gray-300 bg-white pl-2 pr-7 text-sm text-gray-800 outline-none focus:border-blue-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:focus:border-blue-500"
-                  autoFocus
-                />
-                {filterQuery && (
-                  <button
-                    onClick={() => {
-                      setFilterQuery('')
-                      filterInputRef.current?.focus()
-                    }}
-                    className="absolute right-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    aria-label="Clear filter"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            ) : (
-              <button
-                onClick={() => setFilterOpen(true)}
-                className="rounded p-1.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-                aria-label="Filter books"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-              </button>
-            )}
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
+    <div className="flex min-h-0 flex-1 flex-col bg-white dark:bg-gray-900">
+      <div className="min-h-0 flex-1 overflow-y-auto">
       {starredBooks.length > 0 && (
         <section>
           <h2 className="px-4 pt-4 text-sm font-medium text-gray-500 dark:text-gray-400">
@@ -204,8 +186,80 @@ export function OverviewPage() {
           )}
         </TileGrid>
       </section>
+      {textbooks.length === 0 && directories.length > 0 && (
+        <div className="flex flex-col items-center justify-center py-20 text-gray-400 dark:text-gray-500">
+          <p className="text-sm">No PDFs found in attached directories.</p>
+        </div>
+      )}
+      </div>
+      <footer className="flex h-10 shrink-0 items-center gap-1 border-t border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-900">
+        {filterOpen ? (
+          <div className="relative flex items-center">
+            <input
+              ref={filterInputRef}
+              type="text"
+              value={filterQuery}
+              onChange={(e) => setFilterQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setFilterQuery('')
+                  setFilterOpen(false)
+                }
+              }}
+              placeholder="Filter books…"
+              className="h-7 w-48 rounded border border-gray-300 bg-white pl-2 pr-7 text-sm text-gray-800 outline-none focus:border-blue-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:focus:border-blue-500"
+              autoFocus
+            />
+            {filterQuery && (
+              <button
+                onClick={() => {
+                  setFilterQuery('')
+                  filterInputRef.current?.focus()
+                }}
+                className="absolute right-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                aria-label="Clear filter"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => setFilterOpen(true)}
+            className="rounded p-1.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+            aria-label="Filter books"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </button>
+        )}
+        <button
+          onClick={() => setExplorerOpen((o) => !o)}
+          className="rounded p-1.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+          aria-label="Library sources"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          </svg>
+        </button>
+        <ThemeToggle />
+      </footer>
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} items={menuItems} onClose={closeMenu} />
+      )}
+      {explorerOpen && (
+        <DirectoryExplorer
+          directories={directories}
+          textbooks={textbooks}
+          onAdd={handleAddDir}
+          onRemove={handleRemoveDir}
+          onClose={() => setExplorerOpen(false)}
+        />
       )}
     </div>
   )

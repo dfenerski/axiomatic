@@ -45,9 +45,9 @@
   background-color: #374151;
 }
 
-.dark .react-pdf__Page canvas,
-.dark .react-pdf__Page .textLayer,
-.dark .react-pdf__Page .annotationLayer {
+.dark .pdf-reader .react-pdf__Page canvas,
+.dark .pdf-reader .react-pdf__Page .textLayer,
+.dark .pdf-reader .react-pdf__Page .annotationLayer {
   filter: invert(1) hue-rotate(180deg);
 }
 

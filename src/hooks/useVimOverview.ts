@@ -27,7 +27,7 @@ export function useVimOverview(
     const observer = new ResizeObserver(() => updateColumns())
     observer.observe(el)
     return () => observer.disconnect()
-  }, [gridRef, updateColumns])
+  }, [gridRef, updateColumns, slugs])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

@@ -63,10 +63,10 @@ export function ReaderToolbar({
         >
           &larr; Back
         </Link>
-        <span className="truncate text-sm font-medium text-gray-800 dark:text-gray-200">
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800 dark:text-gray-200">
           {title}
         </span>
-        <div className="ml-auto flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <button
             onClick={() => canZoomOut && onZoomChange(ZOOM_STEPS[zoomIdx - 1])}
             disabled={!canZoomOut}

@@ -10,9 +10,13 @@
     <script>
       ;(function () {
         var t = localStorage.getItem('axiomatic:theme')
-        var dark =
-          t === 'dark' || (!t && matchMedia('(prefers-color-scheme: dark)').matches)
-        document.documentElement.classList.toggle('dark', dark)
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.classList.toggle('dark', t === 'dark')
+        } else {
+          var mq = matchMedia('(prefers-color-scheme: dark)')
+          var supported = mq.media !== 'not all'
+          document.documentElement.classList.toggle('dark', supported ? mq.matches : true)
+        }
       })()
     </script>
     <div id="root"></div>

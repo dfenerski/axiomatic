@@ -4,13 +4,17 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "tauri dev",
+    "build": "tauri build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "vite:dev": "vite",
+    "vite:build": "tsc -b && vite build"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.19",
+    "@tauri-apps/api": "^2.9.1",
+    "@tauri-apps/plugin-dialog": "^2.6.0",
+    "@tauri-apps/plugin-fs": "^2.4.5",
     "@tiptap/extension-mathematics": "^3.18.0",
     "@tiptap/react": "^3.18.0",
     "@tiptap/starter-kit": "^3.18.0",
@@ -37,6 +41,7 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.4",
+    "@tauri-apps/cli": "^2.9.6",
     "vite-plugin-static-copy": "^3.2.0"
   }
 }

@@ -2,13 +2,13 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import tailwindcss from '@tailwindcss/vite'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
-import { textbooksPlugin } from './src/plugins/vite-plugin-textbooks'
+
+const host = process.env.TAURI_DEV_HOST
 
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    textbooksPlugin(),
     viteStaticCopy({
       targets: [
         {
@@ -22,4 +22,17 @@ export default defineConfig({
       ],
     }),
   ],
+  clearScreen: false,
+  server: {
+    port: 5173,
+    strictPort: true,
+    host: host || false,
+    hmr: host
+      ? {
+          protocol: 'ws',
+          host,
+          port: 5173,
+        }
+      : undefined,
+  },
 })

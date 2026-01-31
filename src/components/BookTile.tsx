@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { convertFileSrc } from '@tauri-apps/api/core'
 import type { BookProgress } from '../types/progress'
 import { PdfThumbnail } from './PdfThumbnail'
 
@@ -6,6 +7,7 @@ interface Props {
   slug: string
   title: string
   file: string
+  fullPath: string
   progress?: BookProgress
   starred?: boolean
   selected?: boolean
@@ -17,7 +19,7 @@ interface Props {
 export function BookTile({
   slug,
   title,
-  file,
+  fullPath,
   progress,
   starred,
   selected,
@@ -28,6 +30,8 @@ export function BookTile({
   const progressText = progress
     ? `${progress.currentPage}/${progress.totalPages}`
     : null
+
+  const pdfUrl = convertFileSrc(fullPath)
 
   return (
     <Link
@@ -40,7 +44,9 @@ export function BookTile({
     >
       <div className="relative">
         <PdfThumbnail
-          file={`/textbooks/${file}`}
+          file={pdfUrl}
+          fullPath={fullPath}
+          cacheKey={slug}
           onTotalPages={onTotalPages}
         />
         {progressText && (

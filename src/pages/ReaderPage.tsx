@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { convertFileSrc } from '@tauri-apps/api/core'
 import type { Editor } from '@tiptap/core'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { useTextbooks } from '../hooks/useTextbooks'
@@ -14,7 +15,7 @@ import { NotesPanel } from '../components/NotesPanel'
 export function ReaderPage() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
-  const textbooks = useTextbooks()
+  const { textbooks, loading } = useTextbooks()
   const { progress, update } = useProgress()
   const { getNote, setNote } = useNotes()
   const book = textbooks.find((b) => b.slug === slug)
@@ -79,12 +80,16 @@ export function ReaderPage() {
     setSavedProgressPage(null)
   }, [savedProgressPage])
 
-  // Save progress on unmount
+  // Save progress on unmount — only if the PDF actually loaded
   const savedProgressPageRef = useRef(savedProgressPage)
   savedProgressPageRef.current = savedProgressPage
+  const hasLoadedRef = useRef(false)
+  useEffect(() => {
+    if (book && totalPages > 0) hasLoadedRef.current = true
+  }, [book, totalPages])
   useEffect(() => {
     return () => {
-      if (slug) {
+      if (slug && hasLoadedRef.current) {
         update(slug, {
           currentPage: savedProgressPageRef.current ?? currentPageRef.current,
           totalPages: totalPagesRef.current,
@@ -128,8 +133,15 @@ export function ReaderPage() {
   }, [])
 
   if (!book) {
+    if (loading) {
+      return (
+        <div className="flex flex-1 items-center justify-center bg-white dark:bg-gray-900">
+          <p className="text-gray-500 dark:text-gray-400">Loading...</p>
+        </div>
+      )
+    }
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-2 text-gray-500 dark:bg-gray-900 dark:text-gray-400">
+      <div className="flex flex-1 flex-col items-center justify-center gap-2 text-gray-500 dark:bg-gray-900 dark:text-gray-400">
         <p>Book not found.</p>
         <button
           onClick={() => navigate('/')}
@@ -142,7 +154,7 @@ export function ReaderPage() {
   }
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <ReaderToolbar
         title={book.title}
         currentPage={currentPage}
@@ -163,9 +175,9 @@ export function ReaderPage() {
         onBackToProgress={handleBackToProgress}
       />
       <div className="flex min-h-0 flex-1">
-        <div className={`flex min-w-0 flex-1 flex-col ${activePane === 'pdf' ? 'border-t-2 border-blue-200 dark:border-blue-700' : 'border-t-2 border-transparent'}`}>
+        <div className={`flex min-w-0 flex-1 flex-col ${activePane === 'pdf' ? 'border-t-2 border-gray-800 dark:border-gray-200' : 'border-t-2 border-transparent'}`}>
           <PdfViewer
-            file={`/textbooks/${book.file}`}
+            file={convertFileSrc(book.full_path)}
             initialPage={bookProgress?.currentPage ?? 1}
             zoom={zoom}
             onPageChange={handlePageChange}
@@ -178,7 +190,7 @@ export function ReaderPage() {
           />
         </div>
         {notesOpen && slug && (
-          <div className={`flex flex-col ${activePane === 'notes' ? 'border-t-2 border-blue-200 dark:border-blue-700' : 'border-t-2 border-transparent'}`}>
+          <div className={`flex flex-col ${activePane === 'notes' ? 'border-t-2 border-gray-800 dark:border-gray-200' : 'border-t-2 border-transparent'}`}>
             <NotesPanel
               slug={slug}
               page={currentPage}

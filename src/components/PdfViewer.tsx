@@ -235,7 +235,7 @@ export function PdfViewer({
       if (externalContainerRef) {
         (externalContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = node
       }
-    }} className="flex-1 overflow-y-auto bg-gray-100 dark:bg-gray-800">
+    }} className="pdf-reader flex-1 overflow-y-auto bg-gray-100 dark:bg-gray-800">
       <Document
         file={file}
         onLoadSuccess={handleLoadSuccess}

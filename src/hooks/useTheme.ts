@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react'
+import { invoke } from '@tauri-apps/api/core'
 
 type Theme = 'system' | 'light' | 'dark'
 type Resolved = 'light' | 'dark'
 
 const STORAGE_KEY = 'axiomatic:theme'
-const mq = typeof window !== 'undefined' ? matchMedia('(prefers-color-scheme: dark)') : null
+const POLL_INTERVAL = 3000
 
 let listeners: Array<() => void> = []
+let osTheme: 'light' | 'dark' = 'dark' // default until detected
+
 function emit() {
   listeners.forEach((l) => l())
 }
@@ -24,28 +27,42 @@ function subscribe(cb: () => void) {
   }
 }
 
+function systemIsDark() {
+  return osTheme === 'dark'
+}
+
 function apply(theme: Theme) {
-  const dark =
-    theme === 'dark' || (theme === 'system' && !!mq?.matches)
+  const dark = theme === 'dark' || (theme === 'system' && systemIsDark())
   document.documentElement.classList.toggle('dark', dark)
 }
+
+function pollOsTheme() {
+  invoke<string>('detect_os_theme')
+    .then((t) => {
+      const detected = t === 'dark' ? 'dark' : 'light' as const
+      if (detected !== osTheme) {
+        osTheme = detected
+        if (getSnapshot() === 'system') {
+          apply('system')
+          emit()
+        }
+      }
+    })
+    .catch(() => {})
+}
+
+// Initial detection + start polling for OS theme changes
+pollOsTheme()
+setInterval(pollOsTheme, POLL_INTERVAL)
 
 export function useTheme() {
   const theme = useSyncExternalStore(subscribe, getSnapshot)
   const resolved: Resolved =
-    theme === 'system' ? (mq?.matches ? 'dark' : 'light') : theme
+    theme === 'system' ? (systemIsDark() ? 'dark' : 'light') : theme
 
   useEffect(() => {
-    if (!mq) return
-    const handler = () => {
-      if (getSnapshot() === 'system') {
-        apply('system')
-        emit()
-      }
-    }
-    mq.addEventListener('change', handler)
-    return () => mq.removeEventListener('change', handler)
-  }, [])
+    apply(theme)
+  }, [theme])
 
   const cycle = useCallback(() => {
     const current = getSnapshot()
