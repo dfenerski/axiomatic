@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { Document, Page } from 'react-pdf'
+import type { PDFDocumentProxy } from 'pdfjs-dist'
 import 'react-pdf/dist/Page/TextLayer.css'
+import 'react-pdf/dist/Page/AnnotationLayer.css'
+import type { SearchMatch } from '../hooks/useSearch'
 
 const BASE_WIDTH = 800
 const BASE_HEIGHT = 1056
@@ -15,6 +18,10 @@ interface Props {
   onPageChange?: (page: number) => void
   onTotalPages?: (total: number) => void
   containerRef?: RefObject<HTMLDivElement | null>
+  searchMatches?: SearchMatch[]
+  currentMatchIndex?: number
+  onPdfLoaded?: (pdf: PDFDocumentProxy) => void
+  scrollRequest?: { page: number; seq: number } | null
 }
 
 export function PdfViewer({
@@ -24,6 +31,10 @@ export function PdfViewer({
   onPageChange,
   onTotalPages,
   containerRef: externalContainerRef,
+  searchMatches,
+  currentMatchIndex,
+  onPdfLoaded,
+  scrollRequest,
 }: Props) {
   const [numPages, setNumPages] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -40,11 +51,21 @@ export function PdfViewer({
   const prevStrideRef = useRef(pageStride)
 
   const handleLoadSuccess = useCallback(
-    (pdf: { numPages: number }) => {
+    (pdf: PDFDocumentProxy) => {
       setNumPages(pdf.numPages)
       onTotalPages?.(pdf.numPages)
+      onPdfLoaded?.(pdf)
     },
-    [onTotalPages],
+    [onTotalPages, onPdfLoaded],
+  )
+
+  const handleItemClick = useCallback(
+    ({ pageIndex }: { pageIndex: number }) => {
+      const container = containerRef.current
+      if (!container) return
+      container.scrollTop = pageIndex * pageStride
+    },
+    [pageStride],
   )
 
   // Scroll restoration — runs once when numPages first becomes non-zero
@@ -126,6 +147,86 @@ export function PdfViewer({
     }
   }, [currentPage, onPageChange])
 
+  // Scroll to target page (for search navigation)
+  useEffect(() => {
+    if (!scrollRequest || scrollRequest.page < 1) return
+    const container = containerRef.current
+    if (!container) return
+    container.scrollTop = (scrollRequest.page - 1) * pageStride
+  }, [scrollRequest, pageStride])
+
+  // Search highlighting via CSS Custom Highlight API
+  useEffect(() => {
+    if (typeof CSS === 'undefined' || !CSS.highlights) return
+
+    CSS.highlights.delete('search-highlight')
+    CSS.highlights.delete('search-highlight-active')
+
+    if (!searchMatches || searchMatches.length === 0) return
+
+    const allRanges: Range[] = []
+    let activeRange: Range | null = null
+
+    for (let pageNum = visibleRange.start; pageNum <= visibleRange.end; pageNum++) {
+      const pageMatches = searchMatches
+        .map((m, i) => ({ ...m, globalIndex: i }))
+        .filter((m) => m.page === pageNum)
+      if (pageMatches.length === 0) continue
+
+      const pageEl = containerRef.current?.querySelector(
+        `[data-page-number="${pageNum}"] .textLayer`,
+      )
+      if (!pageEl) continue
+
+      // Collect text nodes
+      const walker = document.createTreeWalker(pageEl, NodeFilter.SHOW_TEXT)
+      const textNodes: { node: Text; start: number; end: number }[] = []
+      let offset = 0
+      let node: Text | null
+      while ((node = walker.nextNode() as Text | null)) {
+        const len = node.textContent?.length ?? 0
+        textNodes.push({ node, start: offset, end: offset + len })
+        offset += len
+      }
+
+      for (const match of pageMatches) {
+        const range = document.createRange()
+        let rangeStartSet = false
+        let remaining = match.charEnd - match.charStart
+
+        for (const tn of textNodes) {
+          if (tn.end <= match.charStart) continue
+          if (tn.start >= match.charEnd) break
+
+          const startInNode = Math.max(0, match.charStart - tn.start)
+          const endInNode = Math.min(tn.end - tn.start, match.charEnd - tn.start)
+
+          if (!rangeStartSet) {
+            range.setStart(tn.node, startInNode)
+            rangeStartSet = true
+          }
+          range.setEnd(tn.node, endInNode)
+          remaining -= endInNode - startInNode
+          if (remaining <= 0) break
+        }
+
+        if (rangeStartSet) {
+          allRanges.push(range)
+          if (match.globalIndex === currentMatchIndex) {
+            activeRange = range
+          }
+        }
+      }
+    }
+
+    if (allRanges.length > 0) {
+      CSS.highlights.set('search-highlight', new Highlight(...allRanges))
+    }
+    if (activeRange) {
+      CSS.highlights.set('search-highlight-active', new Highlight(activeRange))
+    }
+  }, [searchMatches, currentMatchIndex, visibleRange])
+
   const totalHeight = numPages > 0 ? numPages * pageStride - PAGE_GAP : 0
 
   return (
@@ -134,12 +235,14 @@ export function PdfViewer({
       if (externalContainerRef) {
         (externalContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = node
       }
-    }} className="flex-1 overflow-y-auto bg-gray-100">
+    }} className="flex-1 overflow-y-auto bg-gray-100 dark:bg-gray-800">
       <Document
         file={file}
         onLoadSuccess={handleLoadSuccess}
+        externalLinkTarget="_blank"
+        onItemClick={handleItemClick}
         loading={
-          <div className="flex items-center justify-center p-8 text-gray-500">
+          <div className="flex items-center justify-center p-8 text-gray-500 dark:text-gray-400">
             Loading PDF…
           </div>
         }
@@ -164,11 +267,11 @@ export function PdfViewer({
                     <Page
                       pageNumber={pageNum}
                       width={pageWidth}
-                      renderAnnotationLayer={false}
+                      renderAnnotationLayer={true}
                       renderTextLayer={true}
                       loading={
                         <div
-                          className="flex items-center justify-center bg-white text-gray-400"
+                          className="flex items-center justify-center bg-white text-gray-400 dark:bg-gray-700 dark:text-gray-500"
                           style={{ width: pageWidth, height: pageHeight }}
                         >
                           Page {pageNum}

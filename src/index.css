@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
+@variant dark (&:where(.dark, .dark *));
 
 .ProseMirror {
   min-height: 100%;
@@ -22,6 +23,10 @@
   line-height: inherit;
   padding-top: 0.15em;
   color: #9ca3af;
+}
+
+.dark .ProseMirror > *::before {
+  color: #6b7280;
   user-select: none;
   pointer-events: none;
 }
@@ -34,4 +39,21 @@
 .tiptap-mathematics-render--editable:hover {
   background-color: #f3f4f6;
   border-radius: 2px;
+}
+
+.dark .tiptap-mathematics-render--editable:hover {
+  background-color: #374151;
+}
+
+.dark .react-pdf__Page canvas,
+.dark .react-pdf__Page .textLayer,
+.dark .react-pdf__Page .annotationLayer {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+::highlight(search-highlight) {
+  background-color: rgba(255, 213, 0, 0.4);
+}
+::highlight(search-highlight-active) {
+  background-color: rgba(255, 150, 0, 0.6);
 }

@@ -40,6 +40,85 @@ export function textbooksPlugin(): Plugin {
       if (!fs.existsSync(textbooksDir)) {
         fs.mkdirSync(textbooksDir, { recursive: true })
       }
+
+      server.middlewares.use('/__textbooks/rename', (req, res) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405
+          res.end('Method not allowed')
+          return
+        }
+        let body = ''
+        req.on('data', (chunk: Buffer) => { body += chunk.toString() })
+        req.on('end', () => {
+          try {
+            const { file, newName } = JSON.parse(body)
+            if (!file || !newName || typeof file !== 'string' || typeof newName !== 'string') {
+              res.statusCode = 400
+              res.end(JSON.stringify({ error: 'Missing file or newName' }))
+              return
+            }
+            if (file.includes('/') || file.includes('..') || newName.includes('/') || newName.includes('..')) {
+              res.statusCode = 400
+              res.end(JSON.stringify({ error: 'Invalid file name' }))
+              return
+            }
+            const oldPath = path.join(textbooksDir, file)
+            const newFile = newName.endsWith('.pdf') ? newName : newName + '.pdf'
+            const newPath = path.join(textbooksDir, newFile)
+            if (!fs.existsSync(oldPath)) {
+              res.statusCode = 404
+              res.end(JSON.stringify({ error: 'File not found' }))
+              return
+            }
+            fs.renameSync(oldPath, newPath)
+            const slug = newFile.replace(/\.pdf$/i, '')
+            const title = slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ slug, title, file: newFile }))
+          } catch {
+            res.statusCode = 400
+            res.end(JSON.stringify({ error: 'Invalid JSON' }))
+          }
+        })
+      })
+
+      server.middlewares.use('/__textbooks/delete', (req, res) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405
+          res.end('Method not allowed')
+          return
+        }
+        let body = ''
+        req.on('data', (chunk: Buffer) => { body += chunk.toString() })
+        req.on('end', () => {
+          try {
+            const { file } = JSON.parse(body)
+            if (!file || typeof file !== 'string') {
+              res.statusCode = 400
+              res.end(JSON.stringify({ error: 'Missing file' }))
+              return
+            }
+            if (file.includes('/') || file.includes('..')) {
+              res.statusCode = 400
+              res.end(JSON.stringify({ error: 'Invalid file name' }))
+              return
+            }
+            const filePath = path.join(textbooksDir, file)
+            if (!fs.existsSync(filePath)) {
+              res.statusCode = 404
+              res.end(JSON.stringify({ error: 'File not found' }))
+              return
+            }
+            fs.unlinkSync(filePath)
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ ok: true }))
+          } catch {
+            res.statusCode = 400
+            res.end(JSON.stringify({ error: 'Invalid JSON' }))
+          }
+        })
+      })
+
       const watcher = server.watcher
       watcher.add(textbooksDir)
       watcher.on('all', (_event, filePath) => {

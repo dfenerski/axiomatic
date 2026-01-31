@@ -36,7 +36,7 @@ export function PdfThumbnail({ file, onTotalPages }: Props) {
 
   if (cachedUrl) {
     return (
-      <div className="relative aspect-[3/4] w-full overflow-hidden rounded bg-gray-200">
+      <div className="relative aspect-[3/4] w-full overflow-hidden rounded bg-gray-200 dark:bg-gray-700">
         <img
           src={cachedUrl}
           alt=""
@@ -48,8 +48,8 @@ export function PdfThumbnail({ file, onTotalPages }: Props) {
 
   if (!cacheChecked) {
     return (
-      <div className="relative aspect-[3/4] w-full overflow-hidden rounded bg-gray-200">
-        <div className="absolute inset-0 animate-pulse bg-gray-300" />
+      <div className="relative aspect-[3/4] w-full overflow-hidden rounded bg-gray-200 dark:bg-gray-700">
+        <div className="absolute inset-0 animate-pulse bg-gray-300 dark:bg-gray-600" />
       </div>
     )
   }
@@ -57,12 +57,12 @@ export function PdfThumbnail({ file, onTotalPages }: Props) {
   return (
     <div
       ref={containerRef}
-      className="relative aspect-[3/4] w-full overflow-hidden rounded bg-gray-200"
+      className="relative aspect-[3/4] w-full overflow-hidden rounded bg-gray-200 dark:bg-gray-700"
     >
       <Document
         file={file}
         loading={
-          <div className="absolute inset-0 animate-pulse bg-gray-300" />
+          <div className="absolute inset-0 animate-pulse bg-gray-300 dark:bg-gray-600" />
         }
         onLoadSuccess={(pdf) => {
           totalPagesRef.current = pdf.numPages

@@ -11,6 +11,7 @@ interface Props {
   selected?: boolean
   onToggleStar?: (slug: string) => void
   onTotalPages?: (total: number) => void
+  onContextMenu?: (slug: string, x: number, y: number) => void
 }
 
 export function BookTile({
@@ -22,6 +23,7 @@ export function BookTile({
   selected,
   onToggleStar,
   onTotalPages,
+  onContextMenu,
 }: Props) {
   const progressText = progress
     ? `${progress.currentPage}/${progress.totalPages}`
@@ -30,7 +32,11 @@ export function BookTile({
   return (
     <Link
       to={`/read/${slug}`}
-      className={`group flex flex-col gap-2 rounded-lg p-2 transition hover:bg-gray-100 ${selected ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
+      className={`group flex flex-col gap-2 rounded-lg p-2 transition hover:bg-gray-100 dark:hover:bg-gray-800 ${selected ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/30' : ''}`}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        onContextMenu?.(slug, e.clientX, e.clientY)
+      }}
     >
       <div className="relative">
         <PdfThumbnail
@@ -63,7 +69,7 @@ export function BookTile({
           </svg>
         </button>
       </div>
-      <span className="truncate text-sm font-medium text-gray-800 group-hover:text-black">
+      <span className="truncate text-sm font-medium text-gray-800 group-hover:text-black dark:text-gray-200 dark:group-hover:text-white">
         {title}
       </span>
     </Link>

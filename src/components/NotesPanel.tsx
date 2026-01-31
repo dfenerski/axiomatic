@@ -205,20 +205,20 @@ export function NotesPanel({ slug, page, content, onUpdate, externalEditorRef }:
   }, [])
 
   return (
-    <div className="flex w-96 shrink-0 flex-col border-l border-gray-200 bg-white">
-      <div className="flex h-12 shrink-0 items-center border-b border-gray-200 px-4">
-        <span className="text-sm font-medium text-gray-700">
+    <div className="flex w-96 shrink-0 flex-col border-l border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex h-12 shrink-0 items-center border-b border-gray-200 px-4 dark:border-gray-700">
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
           Notes &mdash; Page {page}
         </span>
       </div>
       <div className="flex-1 overflow-y-auto p-4">
         <EditorContent
           editor={editor}
-          className="prose prose-sm max-w-none [&_.ProseMirror]:outline-none"
+          className="prose prose-sm max-w-none dark:prose-invert [&_.ProseMirror]:outline-none"
         />
       </div>
-      <div className="flex h-7 shrink-0 items-center border-t border-gray-200 bg-gray-50 px-3">
-        <span className="text-xs font-semibold tracking-wide text-gray-400">
+      <div className="flex h-7 shrink-0 items-center border-t border-gray-200 bg-gray-50 px-3 dark:border-gray-700 dark:bg-gray-800">
+        <span className="text-xs font-semibold tracking-wide text-gray-400 dark:text-gray-500">
           -- {vimMode} --
         </span>
       </div>
