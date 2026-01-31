@@ -14,10 +14,26 @@ function emit() {
   listeners.forEach((l) => l())
 }
 
-function getSnapshot(): Theme {
+function getTheme(): Theme {
   const v = localStorage.getItem(STORAGE_KEY)
   if (v === 'light' || v === 'dark') return v
   return 'system'
+}
+
+function resolve(theme: Theme): Resolved {
+  return theme === 'system' ? (systemIsDark() ? 'dark' : 'light') : theme
+}
+
+// Snapshot encodes both the preference and the resolved value so that
+// useSyncExternalStore triggers a re-render when the OS theme changes.
+function getSnapshot(): string {
+  const theme = getTheme()
+  return `${theme}:${resolve(theme)}`
+}
+
+function parseSnapshot(snap: string): { theme: Theme; resolved: Resolved } {
+  const [theme, resolved] = snap.split(':') as [Theme, Resolved]
+  return { theme, resolved }
 }
 
 function subscribe(cb: () => void) {
@@ -56,16 +72,15 @@ pollOsTheme()
 setInterval(pollOsTheme, POLL_INTERVAL)
 
 export function useTheme() {
-  const theme = useSyncExternalStore(subscribe, getSnapshot)
-  const resolved: Resolved =
-    theme === 'system' ? (systemIsDark() ? 'dark' : 'light') : theme
+  const snap = useSyncExternalStore(subscribe, getSnapshot)
+  const { theme, resolved } = parseSnapshot(snap)
 
   useEffect(() => {
     apply(theme)
   }, [theme])
 
   const cycle = useCallback(() => {
-    const current = getSnapshot()
+    const current = getTheme()
     const next: Theme =
       current === 'system' ? 'light' : current === 'light' ? 'dark' : 'system'
     if (next === 'system') {
