@@ -1,0 +1,37 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+.ProseMirror {
+  min-height: 100%;
+  counter-reset: line-number;
+  padding-left: 2.5rem;
+}
+
+.ProseMirror > * {
+  position: relative;
+  counter-increment: line-number;
+}
+
+.ProseMirror > *::before {
+  content: counter(line-number);
+  position: absolute;
+  left: -2.5rem;
+  width: 2rem;
+  text-align: right;
+  font-size: 0.7rem;
+  line-height: inherit;
+  padding-top: 0.15em;
+  color: #9ca3af;
+  user-select: none;
+  pointer-events: none;
+}
+
+.tiptap-mathematics-render {
+  padding: 0 2px;
+  cursor: pointer;
+}
+
+.tiptap-mathematics-render--editable:hover {
+  background-color: #f3f4f6;
+  border-radius: 2px;
+}
