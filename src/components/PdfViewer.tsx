@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { Document, Page } from 'react-pdf'
+import 'react-pdf/dist/Page/TextLayer.css'
 
 const BASE_WIDTH = 800
 const BASE_HEIGHT = 1056
@@ -164,7 +165,7 @@ export function PdfViewer({
                       pageNumber={pageNum}
                       width={pageWidth}
                       renderAnnotationLayer={false}
-                      renderTextLayer={false}
+                      renderTextLayer={true}
                       loading={
                         <div
                           className="flex items-center justify-center bg-white text-gray-400"
