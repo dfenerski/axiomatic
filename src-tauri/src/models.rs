@@ -17,3 +17,13 @@ pub struct Textbook {
     pub dir_path: String,
     pub full_path: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NoteRecord {
+    pub id: i64,
+    pub slug: String,
+    pub page: i64,
+    pub content: String,
+    pub format: String,
+    pub updated_at: String,
+}

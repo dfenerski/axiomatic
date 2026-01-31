@@ -39,6 +39,14 @@ pub fn run() {
             commands::delete_textbook,
             commands::detect_os_theme,
             commands::read_file_bytes,
+            commands::get_note,
+            commands::set_note,
+            commands::list_notes_for_book,
+            commands::delete_note,
+            commands::save_note_image,
+            commands::get_note_image,
+            commands::export_notes_for_book,
+            commands::migrate_notes_from_json,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

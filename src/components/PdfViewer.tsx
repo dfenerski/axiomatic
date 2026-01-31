@@ -235,14 +235,14 @@ export function PdfViewer({
       if (externalContainerRef) {
         (externalContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = node
       }
-    }} className="pdf-reader flex-1 overflow-y-auto bg-gray-100 dark:bg-gray-800">
+    }} className="pdf-reader flex-1 overflow-y-auto bg-[#eee8d5] dark:bg-[#073642]">
       <Document
         file={file}
         onLoadSuccess={handleLoadSuccess}
         externalLinkTarget="_blank"
         onItemClick={handleItemClick}
         loading={
-          <div className="flex items-center justify-center p-8 text-gray-500 dark:text-gray-400">
+          <div className="flex items-center justify-center p-8 text-[#657b83] dark:text-[#93a1a1]">
             Loading PDF…
           </div>
         }
@@ -271,7 +271,7 @@ export function PdfViewer({
                       renderTextLayer={true}
                       loading={
                         <div
-                          className="flex items-center justify-center bg-white text-gray-400 dark:bg-gray-700 dark:text-gray-500"
+                          className="flex items-center justify-center bg-[#fdf6e3] text-[#93a1a1] dark:bg-[#073642] dark:text-[#657b83]"
                           style={{ width: pageWidth, height: pageHeight }}
                         >
                           Page {pageNum}

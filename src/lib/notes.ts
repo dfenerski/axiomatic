@@ -1,36 +1,52 @@
-import type { NotesMap } from '../types/notes'
+import { invoke } from '@tauri-apps/api/core'
 
-const STORAGE_KEY = 'axiomatic:notes'
-
-export function loadNotes(): NotesMap {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as NotesMap) : {}
-  } catch {
-    return {}
-  }
+export interface NoteRecord {
+  id: number
+  slug: string
+  page: number
+  content: string
+  format: string
+  updated_at: string
 }
 
-export function saveNotes(map: NotesMap): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(map))
+export async function getNote(slug: string, page: number): Promise<NoteRecord | null> {
+  return invoke<NoteRecord | null>('get_note', { slug, page })
 }
 
-export function getNoteKey(slug: string, page: number): string {
-  return `${slug}:${page}`
+export async function setNote(
+  slug: string,
+  page: number,
+  content: string,
+  format: string = 'markdown',
+): Promise<void> {
+  await invoke('set_note', { slug, page, content, format })
 }
 
-export function getNote(slug: string, page: number): string {
-  return loadNotes()[getNoteKey(slug, page)] ?? ''
+export async function listNotesForBook(slug: string): Promise<NoteRecord[]> {
+  return invoke<NoteRecord[]>('list_notes_for_book', { slug })
 }
 
-export function setNote(slug: string, page: number, content: string): void {
-  const map = loadNotes()
-  const key = getNoteKey(slug, page)
-  const isEmpty = !content || content === '<p></p>'
-  if (isEmpty) {
-    delete map[key]
-  } else {
-    map[key] = content
-  }
-  saveNotes(map)
+export async function deleteNote(slug: string, page: number): Promise<void> {
+  await invoke('delete_note', { slug, page })
+}
+
+export async function saveNoteImage(
+  slug: string,
+  page: number,
+  filename: string,
+  data: number[],
+): Promise<number> {
+  return invoke<number>('save_note_image', { slug, page, filename, data })
+}
+
+export async function getNoteImage(id: number): Promise<ArrayBuffer> {
+  return invoke<ArrayBuffer>('get_note_image', { id })
+}
+
+export async function exportNotesForBook(slug: string): Promise<string> {
+  return invoke<string>('export_notes_for_book', { slug })
+}
+
+export async function migrateNotesFromJson(jsonData: string): Promise<number> {
+  return invoke<number>('migrate_notes_from_json', { jsonData })
 }

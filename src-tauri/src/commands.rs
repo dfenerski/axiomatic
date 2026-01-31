@@ -6,7 +6,7 @@ use rusqlite::Connection;
 use tauri::State;
 use walkdir::WalkDir;
 
-use crate::models::{Directory, Textbook};
+use crate::models::{Directory, NoteRecord, Textbook};
 
 pub struct DbState(pub Mutex<Connection>);
 
@@ -31,25 +31,42 @@ fn title_from_stem(stem: &str) -> String {
         .join(" ")
 }
 
-#[tauri::command]
-pub fn list_directories(state: State<'_, DbState>) -> Result<Vec<Directory>, String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
+fn row_to_directory(row: &rusqlite::Row) -> rusqlite::Result<Directory> {
+    Ok(Directory {
+        id: row.get(0)?,
+        path: row.get(1)?,
+        label: row.get(2)?,
+        added_at: row.get(3)?,
+    })
+}
+
+fn row_to_note(row: &rusqlite::Row) -> rusqlite::Result<NoteRecord> {
+    Ok(NoteRecord {
+        id: row.get(0)?,
+        slug: row.get(1)?,
+        page: row.get(2)?,
+        content: row.get(3)?,
+        format: row.get(4)?,
+        updated_at: row.get(5)?,
+    })
+}
+
+fn query_all_directories(conn: &Connection) -> Result<Vec<Directory>, String> {
     let mut stmt = conn
         .prepare("SELECT id, path, label, added_at FROM directories ORDER BY added_at")
         .map_err(|e| e.to_string())?;
     let dirs = stmt
-        .query_map([], |row| {
-            Ok(Directory {
-                id: row.get(0)?,
-                path: row.get(1)?,
-                label: row.get(2)?,
-                added_at: row.get(3)?,
-            })
-        })
+        .query_map([], row_to_directory)
         .map_err(|e| e.to_string())?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
     Ok(dirs)
+}
+
+#[tauri::command]
+pub fn list_directories(state: State<'_, DbState>) -> Result<Vec<Directory>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    query_all_directories(&conn)
 }
 
 #[tauri::command]
@@ -75,14 +92,7 @@ pub fn add_directory(path: String, state: State<'_, DbState>) -> Result<Director
         .prepare("SELECT id, path, label, added_at FROM directories WHERE id = ?1")
         .map_err(|e| e.to_string())?;
     let dir = stmt
-        .query_row([id], |row| {
-            Ok(Directory {
-                id: row.get(0)?,
-                path: row.get(1)?,
-                label: row.get(2)?,
-                added_at: row.get(3)?,
-            })
-        })
+        .query_row([id], row_to_directory)
         .map_err(|e| e.to_string())?;
     Ok(dir)
 }
@@ -98,21 +108,7 @@ pub fn remove_directory(id: i64, state: State<'_, DbState>) -> Result<(), String
 #[tauri::command]
 pub fn list_textbooks(state: State<'_, DbState>) -> Result<Vec<Textbook>, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
-    let mut stmt = conn
-        .prepare("SELECT id, path, label, added_at FROM directories ORDER BY added_at")
-        .map_err(|e| e.to_string())?;
-    let dirs: Vec<Directory> = stmt
-        .query_map([], |row| {
-            Ok(Directory {
-                id: row.get(0)?,
-                path: row.get(1)?,
-                label: row.get(2)?,
-                added_at: row.get(3)?,
-            })
-        })
-        .map_err(|e| e.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| e.to_string())?;
+    let dirs = query_all_directories(&conn)?;
 
     let mut textbooks = Vec::new();
     for dir in &dirs {
@@ -237,4 +233,138 @@ pub fn detect_os_theme() -> String {
 pub fn read_file_bytes(path: String) -> Result<tauri::ipc::Response, String> {
     let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
     Ok(tauri::ipc::Response::new(bytes))
+}
+
+#[tauri::command]
+pub fn get_note(slug: String, page: i64, state: State<'_, DbState>) -> Result<Option<NoteRecord>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare("SELECT id, slug, page, content, format, updated_at FROM notes WHERE slug = ?1 AND page = ?2")
+        .map_err(|e| e.to_string())?;
+    let result = stmt.query_row(rusqlite::params![slug, page], row_to_note);
+    match result {
+        Ok(note) => Ok(Some(note)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
+pub fn set_note(slug: String, page: i64, content: String, format: String, state: State<'_, DbState>) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    if content.is_empty() {
+        conn.execute(
+            "DELETE FROM notes WHERE slug = ?1 AND page = ?2",
+            rusqlite::params![slug, page],
+        ).map_err(|e| e.to_string())?;
+    } else {
+        conn.execute(
+            "INSERT INTO notes (slug, page, content, format, updated_at)
+             VALUES (?1, ?2, ?3, ?4, datetime('now'))
+             ON CONFLICT(slug, page) DO UPDATE SET content = ?3, format = ?4, updated_at = datetime('now')",
+            rusqlite::params![slug, page, content, format],
+        ).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn list_notes_for_book(slug: String, state: State<'_, DbState>) -> Result<Vec<NoteRecord>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare("SELECT id, slug, page, content, format, updated_at FROM notes WHERE slug = ?1 ORDER BY page")
+        .map_err(|e| e.to_string())?;
+    let notes = stmt
+        .query_map(rusqlite::params![slug], row_to_note)
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    Ok(notes)
+}
+
+#[tauri::command]
+pub fn delete_note(slug: String, page: i64, state: State<'_, DbState>) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "DELETE FROM notes WHERE slug = ?1 AND page = ?2",
+        rusqlite::params![slug, page],
+    ).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn save_note_image(slug: String, page: i64, filename: String, data: Vec<u8>, state: State<'_, DbState>) -> Result<i64, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT INTO note_images (note_slug, note_page, filename, data)
+         VALUES (?1, ?2, ?3, ?4)
+         ON CONFLICT(note_slug, note_page, filename) DO UPDATE SET data = ?4",
+        rusqlite::params![slug, page, filename, data],
+    ).map_err(|e| e.to_string())?;
+    Ok(conn.last_insert_rowid())
+}
+
+#[tauri::command]
+pub fn get_note_image(id: i64, state: State<'_, DbState>) -> Result<tauri::ipc::Response, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let data: Vec<u8> = conn
+        .query_row(
+            "SELECT data FROM note_images WHERE id = ?1",
+            [id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(tauri::ipc::Response::new(data))
+}
+
+#[tauri::command]
+pub fn export_notes_for_book(slug: String, state: State<'_, DbState>) -> Result<String, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare("SELECT page, content FROM notes WHERE slug = ?1 ORDER BY page")
+        .map_err(|e| e.to_string())?;
+    let rows: Vec<(i64, String)> = stmt
+        .query_map(rusqlite::params![slug], |row| {
+            Ok((row.get(0)?, row.get(1)?))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    let mut output = String::new();
+    for (page, content) in rows {
+        output.push_str(&format!("## Page {}\n\n{}\n\n", page, content));
+    }
+    Ok(output)
+}
+
+#[tauri::command]
+pub fn migrate_notes_from_json(json_data: String, state: State<'_, DbState>) -> Result<i64, String> {
+    let map: std::collections::HashMap<String, String> =
+        serde_json::from_str(&json_data).map_err(|e| e.to_string())?;
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let mut count: i64 = 0;
+    for (key, content) in &map {
+        let parts: Vec<&str> = key.rsplitn(2, ':').collect();
+        if parts.len() != 2 {
+            continue;
+        }
+        let page: i64 = match parts[0].parse() {
+            Ok(p) => p,
+            Err(_) => continue,
+        };
+        let slug = parts[1];
+        let is_empty = content.is_empty() || content == "<p></p>";
+        if is_empty {
+            continue;
+        }
+        conn.execute(
+            "INSERT INTO notes (slug, page, content, format, updated_at)
+             VALUES (?1, ?2, ?3, 'html', datetime('now'))
+             ON CONFLICT(slug, page) DO UPDATE SET content = ?3, updated_at = datetime('now')",
+            rusqlite::params![slug, page, content],
+        ).map_err(|e| e.to_string())?;
+        count += 1;
+    }
+    Ok(count)
 }

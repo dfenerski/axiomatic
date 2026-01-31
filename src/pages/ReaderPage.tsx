@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { convertFileSrc } from '@tauri-apps/api/core'
-import type { Editor } from '@tiptap/core'
+import type { EditorView } from '@codemirror/view'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { useTextbooks } from '../hooks/useTextbooks'
 import { useProgress } from '../hooks/useProgress'
@@ -29,9 +29,10 @@ export function ReaderPage() {
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null)
   const [scrollRequest, setScrollRequest] = useState<{ page: number; seq: number } | null>(null)
   const [savedProgressPage, setSavedProgressPage] = useState<number | null>(null)
+  const [notesPaneWidth, setNotesPaneWidth] = useState(384)
   const scrollSeq = useRef(0)
   const pdfContainerRef = useRef<HTMLDivElement>(null)
-  const editorRef = useRef<Editor | null>(null)
+  const editorRef = useRef<EditorView | null>(null)
 
   const { activePane } = useVimReader({ pdfContainerRef, notesOpen, setNotesOpen, editorRef })
   const search = useSearch(pdfDocument)
@@ -82,7 +83,9 @@ export function ReaderPage() {
 
   // Save progress on unmount — only if the PDF actually loaded
   const savedProgressPageRef = useRef(savedProgressPage)
-  savedProgressPageRef.current = savedProgressPage
+  useEffect(() => {
+    savedProgressPageRef.current = savedProgressPage
+  }, [savedProgressPage])
   const hasLoadedRef = useRef(false)
   useEffect(() => {
     if (book && totalPages > 0) hasLoadedRef.current = true
@@ -98,6 +101,20 @@ export function ReaderPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug])
+
+  const handleResizeMouseDown = useCallback((e: ReactMouseEvent) => {
+    e.preventDefault()
+    const onMouseMove = (ev: globalThis.MouseEvent) => {
+      const newWidth = Math.min(800, Math.max(240, window.innerWidth - ev.clientX))
+      setNotesPaneWidth(newWidth)
+    }
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+  }, [])
 
   const handlePageChange = useCallback(
     (page: number) => {
@@ -135,17 +152,17 @@ export function ReaderPage() {
   if (!book) {
     if (loading) {
       return (
-        <div className="flex flex-1 items-center justify-center bg-white dark:bg-gray-900">
-          <p className="text-gray-500 dark:text-gray-400">Loading...</p>
+        <div className="flex flex-1 items-center justify-center bg-[#fdf6e3] dark:bg-[#002b36]">
+          <p className="text-[#657b83] dark:text-[#93a1a1]">Loading...</p>
         </div>
       )
     }
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-2 text-gray-500 dark:bg-gray-900 dark:text-gray-400">
+      <div className="flex flex-1 flex-col items-center justify-center gap-2 text-[#657b83] dark:bg-[#002b36] dark:text-[#93a1a1]">
         <p>Book not found.</p>
         <button
           onClick={() => navigate('/')}
-          className="text-sm text-blue-600 underline dark:text-blue-400"
+          className="text-sm text-[#268bd2] underline dark:text-[#268bd2]"
         >
           Go back
         </button>
@@ -175,7 +192,7 @@ export function ReaderPage() {
         onBackToProgress={handleBackToProgress}
       />
       <div className="flex min-h-0 flex-1">
-        <div className={`flex min-w-0 flex-1 flex-col ${activePane === 'pdf' ? 'border-t-2 border-gray-800 dark:border-gray-200' : 'border-t-2 border-transparent'}`}>
+        <div className={`flex min-w-0 flex-1 flex-col ${activePane === 'pdf' ? 'border-t-2 border-[#268bd2]' : 'border-t-2 border-[#eee8d5] dark:border-[#073642]'}`}>
           <PdfViewer
             file={convertFileSrc(book.full_path)}
             initialPage={bookProgress?.currentPage ?? 1}
@@ -190,15 +207,22 @@ export function ReaderPage() {
           />
         </div>
         {notesOpen && slug && (
-          <div className={`flex flex-col ${activePane === 'notes' ? 'border-t-2 border-gray-800 dark:border-gray-200' : 'border-t-2 border-transparent'}`}>
-            <NotesPanel
-              slug={slug}
-              page={currentPage}
-              content={getNote(slug, currentPage)}
-              onUpdate={setNote}
-              externalEditorRef={editorRef}
+          <>
+            <div
+              className="w-1.5 shrink-0 cursor-col-resize bg-[#eee8d5] hover:bg-[#268bd2] active:bg-[#268bd2] dark:bg-[#073642] dark:hover:bg-[#268bd2] dark:active:bg-[#268bd2]"
+              onMouseDown={handleResizeMouseDown}
             />
-          </div>
+            <div className={`flex h-full min-h-0 flex-col ${activePane === 'notes' ? 'border-t-2 border-[#268bd2]' : 'border-t-2 border-[#eee8d5] dark:border-[#073642]'}`}>
+              <NotesPanel
+                slug={slug}
+                page={currentPage}
+                content={getNote(slug, currentPage)}
+                onUpdate={setNote}
+                externalEditorRef={editorRef}
+                width={notesPaneWidth}
+              />
+            </div>
+          </>
         )}
       </div>
     </div>

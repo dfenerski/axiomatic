@@ -12,6 +12,26 @@ pub fn init_db(db_path: &Path) -> Result<Connection> {
             path  TEXT NOT NULL UNIQUE,
             label TEXT NOT NULL,
             added_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            slug TEXT NOT NULL,
+            page INTEGER NOT NULL,
+            content TEXT NOT NULL DEFAULT '',
+            format TEXT NOT NULL DEFAULT 'html',
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(slug, page)
+        );
+
+        CREATE TABLE IF NOT EXISTS note_images (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            note_slug TEXT NOT NULL,
+            note_page INTEGER NOT NULL,
+            filename TEXT NOT NULL,
+            data BLOB NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(note_slug, note_page, filename)
         );",
     )?;
     Ok(conn)

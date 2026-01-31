@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { RefObject } from 'react'
-import type { Editor } from '@tiptap/core'
+import type { EditorView } from '@codemirror/view'
 
 export type ActivePane = 'pdf' | 'notes'
 
@@ -8,13 +8,13 @@ interface Options {
   pdfContainerRef: RefObject<HTMLDivElement | null>
   notesOpen: boolean
   setNotesOpen: (open: boolean) => void
-  editorRef: RefObject<Editor | null>
+  editorRef: RefObject<EditorView | null>
 }
 
 function isInNotesEditor(): boolean {
   const el = document.activeElement
   if (!el) return false
-  return !!el.closest('.ProseMirror')
+  return !!el.closest('.cm-editor')
 }
 
 export function useVimReader({
@@ -82,7 +82,7 @@ export function useVimReader({
             setActivePane('notes')
             // Focus editor after a tick to allow panel to mount
             setTimeout(() => {
-              editorRef.current?.commands.focus()
+              editorRef.current?.focus()
             }, 50)
           }
           break

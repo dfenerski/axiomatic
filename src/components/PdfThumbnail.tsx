@@ -52,7 +52,7 @@ export function PdfThumbnail({ file, fullPath, cacheKey, onTotalPages }: Props) 
 
   if (cachedUrl) {
     return (
-      <div className="relative aspect-[3/4] w-full overflow-hidden rounded bg-gray-200 dark:bg-gray-700">
+      <div className="relative aspect-[3/4] w-full overflow-hidden rounded bg-[#eee8d5] dark:bg-[#073642]">
         <img
           src={cachedUrl}
           alt=""
@@ -64,8 +64,8 @@ export function PdfThumbnail({ file, fullPath, cacheKey, onTotalPages }: Props) 
 
   if (!cacheChecked || (!pdfData && fullPath)) {
     return (
-      <div className="relative aspect-[3/4] w-full overflow-hidden rounded bg-gray-200 dark:bg-gray-700">
-        <div className="absolute inset-0 animate-pulse bg-gray-300 dark:bg-gray-600" />
+      <div className="relative aspect-[3/4] w-full overflow-hidden rounded bg-[#eee8d5] dark:bg-[#073642]">
+        <div className="absolute inset-0 animate-pulse bg-[#93a1a1] dark:bg-[#073642]" />
       </div>
     )
   }
@@ -75,12 +75,12 @@ export function PdfThumbnail({ file, fullPath, cacheKey, onTotalPages }: Props) 
   return (
     <div
       ref={containerRef}
-      className="relative aspect-[3/4] w-full overflow-hidden rounded bg-gray-200 dark:bg-gray-700"
+      className="relative aspect-[3/4] w-full overflow-hidden rounded bg-[#eee8d5] dark:bg-[#073642]"
     >
       <Document
         file={fileSource}
         loading={
-          <div className="absolute inset-0 animate-pulse bg-gray-300 dark:bg-gray-600" />
+          <div className="absolute inset-0 animate-pulse bg-[#93a1a1] dark:bg-[#073642]" />
         }
         onLoadSuccess={(pdf) => {
           totalPagesRef.current = pdf.numPages

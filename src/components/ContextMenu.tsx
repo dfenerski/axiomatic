@@ -40,7 +40,7 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
   return createPortal(
     <div
       ref={ref}
-      className="fixed z-50 min-w-[140px] rounded-md border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+      className="fixed z-50 min-w-[140px] rounded-md border border-[#eee8d5] bg-[#fdf6e3] py-1 shadow-lg dark:border-[#073642] dark:bg-[#073642]"
       style={{ left: x, top: y }}
     >
       {items.map((item) => (
@@ -50,7 +50,7 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
             item.action()
             onClose()
           }}
-          className="block w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+          className="block w-full px-3 py-1.5 text-left text-sm text-[#586e75] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
         >
           {item.label}
         </button>

@@ -2,49 +2,6 @@
 @plugin "@tailwindcss/typography";
 @variant dark (&:where(.dark, .dark *));
 
-.ProseMirror {
-  min-height: 100%;
-  counter-reset: line-number;
-  padding-left: 2.5rem;
-}
-
-.ProseMirror > * {
-  position: relative;
-  counter-increment: line-number;
-}
-
-.ProseMirror > *::before {
-  content: counter(line-number);
-  position: absolute;
-  left: -2.5rem;
-  width: 2rem;
-  text-align: right;
-  font-size: 0.7rem;
-  line-height: inherit;
-  padding-top: 0.15em;
-  color: #9ca3af;
-}
-
-.dark .ProseMirror > *::before {
-  color: #6b7280;
-  user-select: none;
-  pointer-events: none;
-}
-
-.tiptap-mathematics-render {
-  padding: 0 2px;
-  cursor: pointer;
-}
-
-.tiptap-mathematics-render--editable:hover {
-  background-color: #f3f4f6;
-  border-radius: 2px;
-}
-
-.dark .tiptap-mathematics-render--editable:hover {
-  background-color: #374151;
-}
-
 .dark .pdf-reader .react-pdf__Page canvas,
 .dark .pdf-reader .react-pdf__Page .textLayer,
 .dark .pdf-reader .react-pdf__Page .annotationLayer {

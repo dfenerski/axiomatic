@@ -6,7 +6,7 @@ export function ThemeToggle() {
   return (
     <button
       onClick={cycle}
-      className="rounded p-1.5 text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+      className="rounded p-1.5 text-[#586e75] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
       aria-label={`Theme: ${theme}`}
     >
       {theme === 'light' && (

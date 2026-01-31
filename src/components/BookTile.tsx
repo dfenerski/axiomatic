@@ -6,7 +6,6 @@ import { PdfThumbnail } from './PdfThumbnail'
 interface Props {
   slug: string
   title: string
-  file: string
   fullPath: string
   progress?: BookProgress
   starred?: boolean
@@ -36,7 +35,7 @@ export function BookTile({
   return (
     <Link
       to={`/read/${slug}`}
-      className={`group flex flex-col gap-2 rounded-lg p-2 transition hover:bg-gray-100 dark:hover:bg-gray-800 ${selected ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/30' : ''}`}
+      className={`group flex flex-col gap-2 rounded-lg p-2 transition hover:bg-[#eee8d5] dark:hover:bg-[#073642] ${selected ? 'ring-2 ring-[#268bd2] bg-[#268bd2]/10 dark:bg-[#268bd2]/20' : ''}`}
       onContextMenu={(e) => {
         e.preventDefault()
         onContextMenu?.(slug, e.clientX, e.clientY)
@@ -75,7 +74,7 @@ export function BookTile({
           </svg>
         </button>
       </div>
-      <span className="truncate text-sm font-medium text-gray-800 group-hover:text-black dark:text-gray-200 dark:group-hover:text-white">
+      <span className="truncate text-sm font-medium text-[#073642] group-hover:text-[#073642] dark:text-[#eee8d5] dark:group-hover:text-[#fdf6e3]">
         {title}
       </span>
     </Link>

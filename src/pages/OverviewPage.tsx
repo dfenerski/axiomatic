@@ -118,11 +118,11 @@ export function OverviewPage() {
 
   if (!loading && directories.length === 0) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-white dark:bg-gray-900">
-        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300 dark:text-gray-600">
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-[#fdf6e3] dark:bg-[#002b36]">
+        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="text-[#93a1a1] dark:text-[#586e75]">
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
         </svg>
-        <p className="text-gray-500 dark:text-gray-400">No directories attached</p>
+        <p className="text-[#657b83] dark:text-[#93a1a1]">No directories attached</p>
         <button
           onClick={handleAddDir}
           className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
@@ -135,8 +135,8 @@ export function OverviewPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-white dark:bg-gray-900">
-        <p className="text-gray-500 dark:text-gray-400">Loading...</p>
+      <div className="flex flex-1 items-center justify-center bg-[#fdf6e3] dark:bg-[#002b36]">
+        <p className="text-[#657b83] dark:text-[#93a1a1]">Loading...</p>
       </div>
     )
   }
@@ -146,7 +146,6 @@ export function OverviewPage() {
       key={book.slug}
       slug={book.slug}
       title={book.title}
-      file={book.file}
       fullPath={book.full_path}
       progress={progress[book.slug]}
       starred={!!starred[book.slug]}
@@ -162,11 +161,11 @@ export function OverviewPage() {
   )
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-white dark:bg-gray-900">
+    <div className="flex min-h-0 flex-1 flex-col bg-[#fdf6e3] dark:bg-[#002b36]">
       <div className="min-h-0 flex-1 overflow-y-auto">
       {starredBooks.length > 0 && (
         <section>
-          <h2 className="px-4 pt-4 text-sm font-medium text-gray-500 dark:text-gray-400">
+          <h2 className="px-4 pt-4 text-sm font-medium text-[#657b83] dark:text-[#93a1a1]">
             Starred
           </h2>
           <TileGrid gridRef={gridRef}>
@@ -176,7 +175,7 @@ export function OverviewPage() {
       )}
       <section>
         {starredBooks.length > 0 && (
-          <h2 className="px-4 pt-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+          <h2 className="px-4 pt-2 text-sm font-medium text-[#657b83] dark:text-[#93a1a1]">
             All Books
           </h2>
         )}
@@ -187,12 +186,12 @@ export function OverviewPage() {
         </TileGrid>
       </section>
       {textbooks.length === 0 && directories.length > 0 && (
-        <div className="flex flex-col items-center justify-center py-20 text-gray-400 dark:text-gray-500">
+        <div className="flex flex-col items-center justify-center py-20 text-[#93a1a1] dark:text-[#657b83]">
           <p className="text-sm">No PDFs found in attached directories.</p>
         </div>
       )}
       </div>
-      <footer className="flex h-10 shrink-0 items-center gap-1 border-t border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-900">
+      <footer className="flex h-10 shrink-0 items-center gap-1 border-t border-[#eee8d5] bg-[#fdf6e3] px-3 dark:border-[#073642] dark:bg-[#002b36]">
         {filterOpen ? (
           <div className="relative flex items-center">
             <input
@@ -207,7 +206,7 @@ export function OverviewPage() {
                 }
               }}
               placeholder="Filter books…"
-              className="h-7 w-48 rounded border border-gray-300 bg-white pl-2 pr-7 text-sm text-gray-800 outline-none focus:border-blue-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:focus:border-blue-500"
+              className="h-7 w-48 rounded border border-[#93a1a1] bg-[#fdf6e3] pl-2 pr-7 text-sm text-[#073642] outline-none focus:border-blue-400 dark:border-[#073642] dark:bg-[#073642] dark:text-[#eee8d5] dark:focus:border-[#268bd2]"
               autoFocus
             />
             {filterQuery && (
@@ -216,7 +215,7 @@ export function OverviewPage() {
                   setFilterQuery('')
                   filterInputRef.current?.focus()
                 }}
-                className="absolute right-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                className="absolute right-1.5 text-[#93a1a1] hover:text-[#586e75] dark:hover:text-[#93a1a1]"
                 aria-label="Clear filter"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -229,7 +228,7 @@ export function OverviewPage() {
         ) : (
           <button
             onClick={() => setFilterOpen(true)}
-            className="rounded p-1.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+            className="rounded p-1.5 text-[#657b83] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
             aria-label="Filter books"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -240,7 +239,7 @@ export function OverviewPage() {
         )}
         <button
           onClick={() => setExplorerOpen((o) => !o)}
-          className="rounded p-1.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+          className="rounded p-1.5 text-[#657b83] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
           aria-label="Library sources"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
