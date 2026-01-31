@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { RefObject } from 'react'
 import { Document, Page } from 'react-pdf'
 
 const BASE_WIDTH = 800
@@ -12,6 +13,7 @@ interface Props {
   zoom?: number
   onPageChange?: (page: number) => void
   onTotalPages?: (total: number) => void
+  containerRef?: RefObject<HTMLDivElement | null>
 }
 
 export function PdfViewer({
@@ -20,6 +22,7 @@ export function PdfViewer({
   zoom = 1,
   onPageChange,
   onTotalPages,
+  containerRef: externalContainerRef,
 }: Props) {
   const [numPages, setNumPages] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -125,7 +128,12 @@ export function PdfViewer({
   const totalHeight = numPages > 0 ? numPages * pageStride - PAGE_GAP : 0
 
   return (
-    <div ref={containerRef} className="flex-1 overflow-y-auto bg-gray-100">
+    <div ref={(node) => {
+      (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = node
+      if (externalContainerRef) {
+        (externalContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = node
+      }
+    }} className="flex-1 overflow-y-auto bg-gray-100">
       <Document
         file={file}
         onLoadSuccess={handleLoadSuccess}

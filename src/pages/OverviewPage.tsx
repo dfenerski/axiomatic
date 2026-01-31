@@ -1,6 +1,8 @@
+import { useRef } from 'react'
 import { useTextbooks } from '../hooks/useTextbooks'
 import { useProgress } from '../hooks/useProgress'
 import { useStarred } from '../hooks/useStarred'
+import { useVimOverview } from '../hooks/useVimOverview'
 import { TileGrid } from '../components/TileGrid'
 import { BookTile } from '../components/BookTile'
 
@@ -8,6 +10,13 @@ export function OverviewPage() {
   const textbooks = useTextbooks()
   const { progress, update } = useProgress()
   const { starred, toggle } = useStarred()
+  const gridRef = useRef<HTMLDivElement>(null)
+
+  const starredBooks = textbooks.filter((b) => starred[b.slug])
+  const otherBooks = textbooks.filter((b) => !starred[b.slug])
+  const slugs = [...starredBooks, ...otherBooks].map((b) => b.slug)
+
+  const { selectedIndex } = useVimOverview(slugs, gridRef, starredBooks.length)
 
   if (textbooks.length === 0) {
     return (
@@ -21,10 +30,7 @@ export function OverviewPage() {
     )
   }
 
-  const starredBooks = textbooks.filter((b) => starred[b.slug])
-  const otherBooks = textbooks.filter((b) => !starred[b.slug])
-
-  const renderTile = (book: (typeof textbooks)[number]) => (
+  const renderTile = (book: (typeof textbooks)[number], flatIndex: number) => (
     <BookTile
       key={book.slug}
       slug={book.slug}
@@ -32,6 +38,7 @@ export function OverviewPage() {
       file={book.file}
       progress={progress[book.slug]}
       starred={!!starred[book.slug]}
+      selected={selectedIndex === flatIndex}
       onToggleStar={toggle}
       onTotalPages={(total) => {
         if (!progress[book.slug]?.totalPages) {
@@ -51,7 +58,9 @@ export function OverviewPage() {
           <h2 className="px-4 pt-4 text-sm font-medium text-gray-500">
             Starred
           </h2>
-          <TileGrid>{starredBooks.map(renderTile)}</TileGrid>
+          <TileGrid gridRef={gridRef}>
+            {starredBooks.map((book, i) => renderTile(book, i))}
+          </TileGrid>
         </section>
       )}
       <section>
@@ -60,7 +69,11 @@ export function OverviewPage() {
             All Books
           </h2>
         )}
-        <TileGrid>{otherBooks.map(renderTile)}</TileGrid>
+        <TileGrid gridRef={starredBooks.length === 0 ? gridRef : undefined}>
+          {otherBooks.map((book, i) =>
+            renderTile(book, starredBooks.length + i),
+          )}
+        </TileGrid>
       </section>
     </div>
   )

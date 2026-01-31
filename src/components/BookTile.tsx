@@ -8,6 +8,7 @@ interface Props {
   file: string
   progress?: BookProgress
   starred?: boolean
+  selected?: boolean
   onToggleStar?: (slug: string) => void
   onTotalPages?: (total: number) => void
 }
@@ -18,6 +19,7 @@ export function BookTile({
   file,
   progress,
   starred,
+  selected,
   onToggleStar,
   onTotalPages,
 }: Props) {
@@ -28,7 +30,7 @@ export function BookTile({
   return (
     <Link
       to={`/read/${slug}`}
-      className="group flex flex-col gap-2 rounded-lg p-2 transition hover:bg-gray-100"
+      className={`group flex flex-col gap-2 rounded-lg p-2 transition hover:bg-gray-100 ${selected ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
     >
       <div className="relative">
         <PdfThumbnail

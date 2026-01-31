@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Extension, InputRule, type Editor } from '@tiptap/core'
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import type { Node } from '@tiptap/pm/model'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { InlineMath, BlockMath } from '@tiptap/extension-mathematics'
+import { VimMode, type VimModeType } from '../extensions/vim-mode'
 import 'katex/dist/katex.min.css'
 
 function unpackInlineMath(editor: Editor | null, pos: number, latex: string) {
@@ -141,12 +142,15 @@ interface Props {
   page: number
   content: string
   onUpdate: (slug: string, page: number, content: string) => void
+  externalEditorRef?: React.RefObject<Editor | null>
 }
 
-export function NotesPanel({ slug, page, content, onUpdate }: Props) {
+export function NotesPanel({ slug, page, content, onUpdate, externalEditorRef }: Props) {
   const currentKeyRef = useRef(`${slug}:${page}`)
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const editorRef = useRef<Editor | null>(null)
+  const [vimMode, setVimMode] = useState<VimModeType>('NORMAL')
+  const vimModeRef = useRef<VimModeType>('NORMAL')
 
   const editor = useEditor({
     extensions: [
@@ -160,8 +164,16 @@ export function NotesPanel({ slug, page, content, onUpdate }: Props) {
           unpackBlockMath(editorRef.current, pos, node.attrs.latex),
       }),
       BlockMathCollapse,
+      VimMode,
     ],
     content,
+    onTransaction: ({ editor: ed }) => {
+      const mode = ed.storage.vimMode?.mode as VimModeType | undefined
+      if (mode && mode !== vimModeRef.current) {
+        vimModeRef.current = mode
+        setVimMode(mode)
+      }
+    },
     onUpdate: ({ editor: ed }) => {
       const html = ed.getHTML()
       const key = currentKeyRef.current
@@ -174,6 +186,9 @@ export function NotesPanel({ slug, page, content, onUpdate }: Props) {
   })
 
   editorRef.current = editor
+  if (externalEditorRef) {
+    (externalEditorRef as React.MutableRefObject<Editor | null>).current = editor
+  }
 
   useEffect(() => {
     const newKey = `${slug}:${page}`
@@ -201,6 +216,11 @@ export function NotesPanel({ slug, page, content, onUpdate }: Props) {
           editor={editor}
           className="prose prose-sm max-w-none [&_.ProseMirror]:outline-none"
         />
+      </div>
+      <div className="flex h-7 shrink-0 items-center border-t border-gray-200 bg-gray-50 px-3">
+        <span className="text-xs font-semibold tracking-wide text-gray-400">
+          -- {vimMode} --
+        </span>
       </div>
     </div>
   )
