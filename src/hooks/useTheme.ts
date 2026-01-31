@@ -10,6 +10,8 @@ const POLL_INTERVAL = 3000
 let listeners: Array<() => void> = []
 let osTheme: 'light' | 'dark' = 'dark' // default until detected
 
+const mq = window.matchMedia('(prefers-color-scheme: dark)')
+
 function emit() {
   listeners.forEach((l) => l())
 }
@@ -20,12 +22,19 @@ function getTheme(): Theme {
   return 'system'
 }
 
+function systemIsDark() {
+  return osTheme === 'dark'
+}
+
 function resolve(theme: Theme): Resolved {
   return theme === 'system' ? (systemIsDark() ? 'dark' : 'light') : theme
 }
 
-// Snapshot encodes both the preference and the resolved value so that
-// useSyncExternalStore triggers a re-render when the OS theme changes.
+function apply(theme: Theme) {
+  const dark = theme === 'dark' || (theme === 'system' && systemIsDark())
+  document.documentElement.classList.toggle('dark', dark)
+}
+
 function getSnapshot(): string {
   const theme = getTheme()
   return `${theme}:${resolve(theme)}`
@@ -43,33 +52,34 @@ function subscribe(cb: () => void) {
   }
 }
 
-function systemIsDark() {
-  return osTheme === 'dark'
+function onOsThemeChange(dark: boolean) {
+  const detected = dark ? 'dark' : 'light' as const
+  if (detected !== osTheme) {
+    osTheme = detected
+    if (getTheme() === 'system') {
+      apply('system')
+      emit()
+    }
+  }
 }
 
-function apply(theme: Theme) {
-  const dark = theme === 'dark' || (theme === 'system' && systemIsDark())
-  document.documentElement.classList.toggle('dark', dark)
-}
+// Primary: matchMedia fires instantly when available
+mq.addEventListener('change', (e) => onOsThemeChange(e.matches))
 
+// Fallback: poll via Tauri IPC for webviews where matchMedia doesn't reflect OS
 function pollOsTheme() {
   invoke<string>('detect_os_theme')
-    .then((t) => {
-      const detected = t === 'dark' ? 'dark' : 'light' as const
-      if (detected !== osTheme) {
-        osTheme = detected
-        if (getSnapshot() === 'system') {
-          apply('system')
-          emit()
-        }
-      }
-    })
+    .then((t) => onOsThemeChange(t === 'dark'))
     .catch(() => {})
 }
 
-// Initial detection + start polling for OS theme changes
+// Seed initial value from both sources
+osTheme = mq.matches ? 'dark' : 'light'
 pollOsTheme()
 setInterval(pollOsTheme, POLL_INTERVAL)
+
+// Apply on load
+apply(getTheme())
 
 export function useTheme() {
   const snap = useSyncExternalStore(subscribe, getSnapshot)
