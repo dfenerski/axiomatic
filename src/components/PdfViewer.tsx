@@ -238,6 +238,7 @@ export function PdfViewer({
     }} className="pdf-reader flex-1 overflow-y-auto bg-[#eee8d5] dark:bg-[#073642]">
       <Document
         file={file}
+        // @ts-ignore — react-pdf bundles its own pdfjs-dist with a divergent PDFDocumentProxy type
         onLoadSuccess={handleLoadSuccess}
         externalLinkTarget="_blank"
         onItemClick={handleItemClick}
