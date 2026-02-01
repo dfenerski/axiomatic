@@ -173,7 +173,7 @@ export function ReaderPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex min-h-0 flex-1">
-        <div className={`flex min-w-0 flex-1 flex-col ${activePane === 'pdf' ? 'border-b-2 border-[#268bd2]' : 'border-b-2 border-[#eee8d5] dark:border-[#073642]'}`}>
+        <div className={`flex min-w-0 flex-1 flex-col ${activePane === 'pdf' ? 'border-t-2 border-[#268bd2]' : 'border-t-2 border-[#eee8d5] dark:border-[#073642]'}`}>
           <PdfViewer
             file={convertFileSrc(book.full_path)}
             initialPage={bookProgress?.currentPage ?? 1}
@@ -193,7 +193,7 @@ export function ReaderPage() {
               className="w-1.5 shrink-0 cursor-col-resize bg-[#eee8d5] hover:bg-[#268bd2] active:bg-[#268bd2] dark:bg-[#073642] dark:hover:bg-[#268bd2] dark:active:bg-[#268bd2]"
               onMouseDown={handleResizeMouseDown}
             />
-            <div className={`flex h-full min-h-0 flex-col ${activePane === 'notes' ? 'border-b-2 border-[#268bd2]' : 'border-b-2 border-[#eee8d5] dark:border-[#073642]'}`}>
+            <div className={`flex h-full min-h-0 flex-col ${activePane === 'notes' ? 'border-t-2 border-[#268bd2]' : 'border-t-2 border-[#eee8d5] dark:border-[#073642]'}`}>
               <NotesPanel
                 slug={slug}
                 page={currentPage}
