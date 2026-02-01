@@ -1,73 +1,39 @@
-# React + TypeScript + Vite
+# Axiomatic
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A local-first PDF textbook reader with vim-style navigation, per-page LaTeX notes, and a solarized theme. Built for students and researchers who prefer keyboard-driven workflows.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **PDF reading** with text search, zoom (50%--300%), and automatic progress tracking
+- **Per-page notes** in a split-pane Markdown editor with full vim keybindings
+- **LaTeX math** rendering inline (`$E=mc^2$`) and in display blocks (`$$\sum x^2$$`)
+- **Image paste** directly into notes from clipboard
+- **Library management** -- scan directories for PDFs, star favourites, sort by last read
+- **Keyboard navigation** everywhere: `j/k` scrolling in the reader, `h/j/k/l` grid navigation in the library, `Ctrl+L` to open notes, `Ctrl+H` to close
+- **Solarized light & dark** themes with automatic OS detection
+- **Local storage** -- all notes and images live in a SQLite database on your machine
 
-## React Compiler
+## Install
 
-The React Compiler is currently not compatible with SWC. See [this issue](https://github.com/vitejs/vite-plugin-react/issues/428) for tracking the progress.
+Download the latest `.deb`, `.rpm`, or `.AppImage` from [Releases](../../releases).
 
-## Expanding the ESLint configuration
+## Build from source
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Requires Node.js 20+, Rust 1.77+, and the [Tauri v2 prerequisites](https://v2.tauri.app/start/prerequisites/).
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sh
+npm ci
+npm run build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The bundled app will be in `src-tauri/target/release/bundle/`.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Development
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sh
+npm run dev
 ```
+
+## License
+
+MIT
