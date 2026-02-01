@@ -42,6 +42,7 @@ export function OverviewPage() {
   const [tagAssignerSlug, setTagAssignerSlug] = useState<string | null>(null)
   const [activeTagFilters, setActiveTagFilters] = useState<Set<number>>(new Set())
   const filterInputRef = useRef<HTMLInputElement>(null)
+  const tagBtnRef = useRef<HTMLButtonElement>(null)
 
   const matchesFilter = useCallback(
     (title: string, slug: string) => {
@@ -357,8 +358,9 @@ export function OverviewPage() {
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
             </svg>
           </button>
-          <div className="relative shrink-0">
+          <div className="shrink-0">
             <button
+              ref={tagBtnRef}
               onClick={() => setTagManagerOpen((o) => !o)}
               className="rounded p-1.5 text-[#657b83] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
               aria-label="Manage tags"
@@ -368,15 +370,6 @@ export function OverviewPage() {
                 <line x1="7" y1="7" x2="7.01" y2="7" />
               </svg>
             </button>
-            {tagManagerOpen && (
-              <TagManager
-                tags={tags}
-                onCreate={createTag}
-                onDelete={deleteTag}
-                onUpdateColor={updateTagColor}
-                onClose={() => setTagManagerOpen(false)}
-              />
-            )}
           </div>
           {tags.length > 0 && (
             <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
@@ -416,6 +409,16 @@ export function OverviewPage() {
           <SyncStatus {...syncStatus} />
         </div>
       </footer>
+      {tagManagerOpen && (
+        <TagManager
+          tags={tags}
+          anchorRef={tagBtnRef}
+          onCreate={createTag}
+          onDelete={deleteTag}
+          onUpdateColor={updateTagColor}
+          onClose={() => setTagManagerOpen(false)}
+        />
+      )}
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} items={menuItems} onClose={closeMenu} />
       )}

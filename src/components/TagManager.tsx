@@ -1,27 +1,40 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, type RefObject } from 'react'
+import { createPortal } from 'react-dom'
 import type { Tag } from '../hooks/useTags'
 import { defaultTagColor } from '../lib/tag-colors'
 
 interface Props {
   tags: Tag[]
+  anchorRef: RefObject<HTMLElement | null>
   onCreate: (name: string, color: string) => void
   onDelete: (id: number) => void
   onUpdateColor: (id: number, color: string) => void
   onClose: () => void
 }
 
-export function TagManager({ tags, onCreate, onDelete, onUpdateColor, onClose }: Props) {
+export function TagManager({ tags, anchorRef, onCreate, onDelete, onUpdateColor, onClose }: Props) {
   const [newName, setNewName] = useState('')
   const ref = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const [pos, setPos] = useState<{ left: number; bottom: number } | null>(null)
 
   useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
+    const anchor = anchorRef.current
+    if (!anchor) return
+    const rect = anchor.getBoundingClientRect()
+    setPos({ left: rect.left, bottom: window.innerHeight - rect.top + 4 })
+  }, [anchorRef])
+
+  useEffect(() => {
+    if (pos) inputRef.current?.focus()
+  }, [pos])
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      if (
+        ref.current && !ref.current.contains(e.target as Node) &&
+        anchorRef.current && !anchorRef.current.contains(e.target as Node)
+      ) {
         onClose()
       }
     }
@@ -34,7 +47,7 @@ export function TagManager({ tags, onCreate, onDelete, onUpdateColor, onClose }:
       document.removeEventListener('mousedown', handleClick)
       document.removeEventListener('keydown', handleKey)
     }
-  }, [onClose])
+  }, [onClose, anchorRef])
 
   const handleCreate = () => {
     const name = newName.trim()
@@ -44,10 +57,13 @@ export function TagManager({ tags, onCreate, onDelete, onUpdateColor, onClose }:
     setNewName('')
   }
 
-  return (
+  if (!pos) return null
+
+  return createPortal(
     <div
       ref={ref}
-      className="absolute bottom-full left-0 mb-1 w-56 rounded-md border border-[#eee8d5] bg-[#fdf6e3] py-1 shadow-lg dark:border-[#073642] dark:bg-[#073642]"
+      style={{ left: pos.left, bottom: pos.bottom, position: 'fixed' }}
+      className="z-50 w-56 rounded-md border border-[#eee8d5] bg-[#fdf6e3] py-1 shadow-lg dark:border-[#073642] dark:bg-[#073642]"
     >
       <div className="max-h-48 overflow-y-auto">
         {tags.length === 0 && (
@@ -98,6 +114,7 @@ export function TagManager({ tags, onCreate, onDelete, onUpdateColor, onClose }:
           className="h-7 w-full rounded border border-[#93a1a1] bg-[#fdf6e3] px-2 text-sm text-[#073642] outline-none focus:border-blue-400 dark:border-[#073642] dark:bg-[#002b36] dark:text-[#eee8d5] dark:focus:border-[#268bd2]"
         />
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

@@ -54,19 +54,105 @@ export function ReaderToolbar({
     }
   }, [searchOpen])
 
+  const iconBtnClass = 'shrink-0 rounded p-1.5 text-[#657b83] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]'
+  const iconBtnActiveClass = 'shrink-0 rounded p-1.5 bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+
   return (
     <div className="shrink-0">
-      <div className="flex h-12 items-center gap-4 border-b border-[#eee8d5] bg-[#fdf6e3] px-4 dark:border-[#073642] dark:bg-[#002b36]">
-        <Link
-          to="/"
-          className="rounded px-2 py-1 text-sm font-medium text-[#586e75] hover:bg-[#eee8d5] hover:text-[#073642] dark:text-[#93a1a1] dark:hover:bg-[#073642] dark:hover:text-[#eee8d5]"
-        >
-          &larr; Back
-        </Link>
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-[#073642] dark:text-[#eee8d5]">
-          {title}
-        </span>
-        <div className="flex shrink-0 items-center gap-1">
+      {searchOpen && (
+        <div className="flex h-10 items-center gap-2 border-t border-[#eee8d5] bg-[#eee8d5] px-3 dark:border-[#073642] dark:bg-[#073642]">
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => onSearchQueryChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                if (e.shiftKey) onSearchPrev()
+                else onSearchNext()
+              } else if (e.key === 'Escape') {
+                e.preventDefault()
+                onToggleSearch()
+              }
+            }}
+            placeholder="Search in document…"
+            className="h-7 w-64 rounded border border-[#93a1a1] bg-[#fdf6e3] px-2 text-sm text-[#073642] outline-none focus:border-blue-400 dark:border-[#073642] dark:bg-[#002b36] dark:text-[#eee8d5] dark:focus:border-[#268bd2]"
+          />
+          <span className="text-xs tabular-nums text-[#657b83] dark:text-[#93a1a1]">
+            {searchTotalMatches > 0
+              ? `${searchCurrentIndex + 1} of ${searchTotalMatches}`
+              : searchQuery
+                ? 'No matches'
+                : ''}
+          </span>
+          <button
+            onClick={onSearchPrev}
+            disabled={searchTotalMatches === 0}
+            className="rounded px-1.5 py-0.5 text-sm text-[#586e75] hover:bg-[#fdf6e3] disabled:opacity-30 dark:text-[#93a1a1] dark:hover:bg-[#002b36]"
+            aria-label="Previous match"
+          >
+            ‹
+          </button>
+          <button
+            onClick={onSearchNext}
+            disabled={searchTotalMatches === 0}
+            className="rounded px-1.5 py-0.5 text-sm text-[#586e75] hover:bg-[#fdf6e3] disabled:opacity-30 dark:text-[#93a1a1] dark:hover:bg-[#002b36]"
+            aria-label="Next match"
+          >
+            ›
+          </button>
+          {savedProgressPage != null && (
+            <button
+              onClick={onBackToProgress}
+              className="ml-auto rounded px-2 py-0.5 text-xs font-medium text-[#268bd2] hover:bg-[#268bd2]/10 dark:text-[#268bd2] dark:hover:bg-blue-900/30"
+              aria-label="Back to current page"
+            >
+              Back to p.{savedProgressPage}
+            </button>
+          )}
+          <button
+            onClick={onToggleSearch}
+            className={`${savedProgressPage == null ? 'ml-auto' : ''} rounded px-1.5 py-0.5 text-sm text-[#657b83] hover:bg-[#fdf6e3] dark:text-[#93a1a1] dark:hover:bg-[#002b36]`}
+            aria-label="Close search"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+      <footer className="flex h-10 shrink-0 items-center border-t border-[#eee8d5] bg-[#fdf6e3] px-3 dark:border-[#073642] dark:bg-[#002b36]">
+        <div className="flex min-w-0 flex-1 items-center gap-1">
+          <Link
+            to="/"
+            className={iconBtnClass}
+            aria-label="Back to library"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12" />
+              <polyline points="12 19 5 12 12 5" />
+            </svg>
+          </Link>
+          <button
+            onClick={onToggleSearch}
+            className={searchOpen ? iconBtnActiveClass : iconBtnClass}
+            aria-label="Toggle search"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </button>
+          <button
+            onClick={onToggleNotes}
+            className={notesOpen ? iconBtnActiveClass : iconBtnClass}
+            aria-label="Toggle notes"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+          </button>
+          <div className="mx-1 h-4 w-px bg-[#eee8d5] dark:bg-[#073642]" />
           <button
             onClick={() => canZoomOut && onZoomChange(ZOOM_STEPS[zoomIdx - 1])}
             disabled={!canZoomOut}
@@ -90,95 +176,18 @@ export function ReaderToolbar({
           >
             +
           </button>
-          <span className="ml-3 text-sm tabular-nums text-[#657b83] dark:text-[#93a1a1]">
+          <div className="mx-1 h-4 w-px bg-[#eee8d5] dark:bg-[#073642]" />
+          <span className="text-sm tabular-nums text-[#657b83] dark:text-[#93a1a1]">
             {currentPage} / {totalPages}
           </span>
-          <button
-            onClick={onToggleSearch}
-            className={`ml-3 rounded px-2 py-0.5 text-sm font-medium ${
-              searchOpen
-                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                : 'text-[#586e75] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]'
-            }`}
-            aria-label="Toggle search"
-          >
-            Search
-          </button>
-          <button
-            onClick={onToggleNotes}
-            className={`ml-1 rounded px-2 py-0.5 text-sm font-medium ${
-              notesOpen
-                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                : 'text-[#586e75] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]'
-            }`}
-            aria-label="Toggle notes"
-          >
-            Notes
-          </button>
+          <span className="ml-2 min-w-0 truncate text-xs text-[#93a1a1] dark:text-[#657b83]">
+            {title}
+          </span>
+        </div>
+        <div className="flex shrink-0 items-center gap-1 pl-1">
           <ThemeToggle />
         </div>
-      </div>
-      {searchOpen && (
-        <div className="flex h-10 items-center gap-2 border-b border-[#eee8d5] bg-[#eee8d5] px-4 dark:border-[#073642] dark:bg-[#073642]">
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchQueryChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                if (e.shiftKey) onSearchPrev()
-                else onSearchNext()
-              } else if (e.key === 'Escape') {
-                e.preventDefault()
-                onToggleSearch()
-              }
-            }}
-            placeholder="Search in document…"
-            className="h-7 w-64 rounded border border-[#93a1a1] bg-[#fdf6e3] px-2 text-sm text-[#073642] outline-none focus:border-blue-400 dark:border-[#073642] dark:bg-[#073642] dark:text-[#eee8d5] dark:focus:border-[#268bd2]"
-          />
-          <span className="text-xs tabular-nums text-[#657b83] dark:text-[#93a1a1]">
-            {searchTotalMatches > 0
-              ? `${searchCurrentIndex + 1} of ${searchTotalMatches}`
-              : searchQuery
-                ? 'No matches'
-                : ''}
-          </span>
-          <button
-            onClick={onSearchPrev}
-            disabled={searchTotalMatches === 0}
-            className="rounded px-1.5 py-0.5 text-sm text-[#586e75] hover:bg-[#eee8d5] disabled:opacity-30 dark:text-[#93a1a1] dark:hover:bg-[#073642]"
-            aria-label="Previous match"
-          >
-            ‹
-          </button>
-          <button
-            onClick={onSearchNext}
-            disabled={searchTotalMatches === 0}
-            className="rounded px-1.5 py-0.5 text-sm text-[#586e75] hover:bg-[#eee8d5] disabled:opacity-30 dark:text-[#93a1a1] dark:hover:bg-[#073642]"
-            aria-label="Next match"
-          >
-            ›
-          </button>
-          {savedProgressPage != null && (
-            <button
-              onClick={onBackToProgress}
-              className="ml-auto rounded px-2 py-0.5 text-xs font-medium text-[#268bd2] hover:bg-[#268bd2]/10 dark:text-[#268bd2] dark:hover:bg-blue-900/30"
-              aria-label="Back to current page"
-            >
-              Back to p.{savedProgressPage}
-            </button>
-          )}
-          <button
-            onClick={onToggleSearch}
-            className={`${savedProgressPage == null ? 'ml-auto' : ''} rounded px-1.5 py-0.5 text-sm text-[#657b83] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]`}
-            aria-label="Close search"
-          >
-            ✕
-          </button>
-        </div>
-      )}
+      </footer>
     </div>
   )
 }
