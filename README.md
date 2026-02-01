@@ -39,7 +39,6 @@ npm run dev
 - highlight pdf content - `sioyek`, but better
 - bookmark pdf page / paragraph - `sioyek`, but better
 - pdf overview as in `evince`
-- colored document tagging, e.g prio-1, prio-2, ai-gen
 - more vim nav keybinds:nav back from reader to overview with ctrl-h
 - live-watch for OS changes
 - better app icon, naming in system tray when exported
