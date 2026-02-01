@@ -2,6 +2,10 @@
 @plugin "@tailwindcss/typography";
 @variant dark (&:where(.dark, .dark *));
 
+html, body {
+  background: transparent;
+}
+
 .dark .pdf-reader .react-pdf__Page canvas,
 .dark .pdf-reader .react-pdf__Page .textLayer,
 .dark .pdf-reader .react-pdf__Page .annotationLayer {

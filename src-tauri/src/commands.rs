@@ -6,7 +6,7 @@ use rusqlite::Connection;
 use tauri::State;
 use walkdir::WalkDir;
 
-use crate::models::{Directory, NoteRecord, Textbook};
+use crate::models::{BookTagMapping, Directory, NoteRecord, Tag, Textbook};
 
 pub struct DbState(pub Mutex<Connection>);
 
@@ -373,4 +373,100 @@ pub fn migrate_notes_from_json(json_data: String, state: State<'_, DbState>) -> 
         count += 1;
     }
     Ok(count)
+}
+
+#[tauri::command]
+pub fn list_tags(state: State<'_, DbState>) -> Result<Vec<Tag>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare("SELECT id, name, color FROM tags ORDER BY id")
+        .map_err(|e| e.to_string())?;
+    let tags = stmt
+        .query_map([], |row| {
+            Ok(Tag {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                color: row.get(2)?,
+            })
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    Ok(tags)
+}
+
+#[tauri::command]
+pub fn create_tag(name: String, color: String, state: State<'_, DbState>) -> Result<Tag, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT INTO tags (name, color) VALUES (?1, ?2)",
+        rusqlite::params![name, color],
+    )
+    .map_err(|e| e.to_string())?;
+    let id = conn.last_insert_rowid();
+    Ok(Tag { id, name, color })
+}
+
+#[tauri::command]
+pub fn delete_tag(id: i64, state: State<'_, DbState>) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    conn.execute("PRAGMA foreign_keys = ON", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM tags WHERE id = ?1", [id])
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn update_tag_color(id: i64, color: String, state: State<'_, DbState>) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "UPDATE tags SET color = ?1 WHERE id = ?2",
+        rusqlite::params![color, id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn tag_book(book_slug: String, tag_id: i64, state: State<'_, DbState>) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT OR IGNORE INTO book_tags (book_slug, tag_id) VALUES (?1, ?2)",
+        rusqlite::params![book_slug, tag_id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn untag_book(book_slug: String, tag_id: i64, state: State<'_, DbState>) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "DELETE FROM book_tags WHERE book_slug = ?1 AND tag_id = ?2",
+        rusqlite::params![book_slug, tag_id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn list_book_tags_all(state: State<'_, DbState>) -> Result<Vec<BookTagMapping>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT bt.book_slug, t.id, t.name, t.color
+             FROM book_tags bt
+             JOIN tags t ON t.id = bt.tag_id
+             ORDER BY bt.book_slug, t.id",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows: Vec<(String, i64, String, String)> = stmt
+        .query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    Ok(BookTagMapping::group_from_rows(rows))
 }

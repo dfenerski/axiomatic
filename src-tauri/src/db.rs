@@ -7,7 +7,9 @@ pub fn init_db(db_path: &Path) -> Result<Connection> {
     }
     let conn = Connection::open(db_path)?;
     conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS directories (
+        "PRAGMA foreign_keys = ON;
+
+        CREATE TABLE IF NOT EXISTS directories (
             id    INTEGER PRIMARY KEY AUTOINCREMENT,
             path  TEXT NOT NULL UNIQUE,
             label TEXT NOT NULL,
@@ -32,6 +34,18 @@ pub fn init_db(db_path: &Path) -> Result<Connection> {
             data BLOB NOT NULL,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             UNIQUE(note_slug, note_page, filename)
+        );
+
+        CREATE TABLE IF NOT EXISTS tags (
+            id    INTEGER PRIMARY KEY AUTOINCREMENT,
+            name  TEXT NOT NULL UNIQUE,
+            color TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS book_tags (
+            book_slug TEXT NOT NULL,
+            tag_id    INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+            UNIQUE(book_slug, tag_id)
         );",
     )?;
     Ok(conn)

@@ -2,6 +2,7 @@ import { memo } from 'react'
 import { Link } from 'react-router-dom'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import type { BookProgress } from '../types/progress'
+import type { Tag } from '../hooks/useTags'
 import { PdfThumbnail } from './PdfThumbnail'
 
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
   progress?: BookProgress
   starred?: boolean
   selected?: boolean
+  tags?: Tag[]
   onToggleStar?: (slug: string) => void
   onTotalPages?: (slug: string, total: number) => void
   onContextMenu?: (slug: string, x: number, y: number) => void
@@ -26,6 +28,7 @@ export const BookTile = memo(function BookTile({
   onToggleStar,
   onTotalPages,
   onContextMenu,
+  tags,
 }: Props) {
   const progressText = progress
     ? `${progress.currentPage}/${progress.totalPages}`
@@ -74,6 +77,24 @@ export const BookTile = memo(function BookTile({
             <path d="M10 2l2.39 4.84L17.3 7.7l-3.65 3.56.86 5.03L10 13.77l-4.51 2.52.86-5.03L2.7 7.7l4.91-.86L10 2z" />
           </svg>
         </button>
+        {tags && tags.length > 0 && (
+          <div className="absolute bottom-0 left-0 right-0 flex flex-wrap gap-1 p-1.5 opacity-0 transition group-hover:opacity-100">
+            {tags.slice(0, 3).map((t) => (
+              <span
+                key={t.id}
+                className="rounded px-1.5 py-0.5 text-[10px] font-medium text-white"
+                style={{ backgroundColor: t.color }}
+              >
+                {t.name}
+              </span>
+            ))}
+            {tags.length > 3 && (
+              <span className="rounded bg-black/50 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                +{tags.length - 3}
+              </span>
+            )}
+          </div>
+        )}
       </div>
       <span className="truncate text-sm font-medium text-[#073642] group-hover:text-[#073642] dark:text-[#eee8d5] dark:group-hover:text-[#fdf6e3]">
         {title}
@@ -86,6 +107,7 @@ export const BookTile = memo(function BookTile({
   prev.fullPath === next.fullPath &&
   prev.starred === next.starred &&
   prev.selected === next.selected &&
+  prev.tags === next.tags &&
   prev.onToggleStar === next.onToggleStar &&
   prev.onTotalPages === next.onTotalPages &&
   prev.onContextMenu === next.onContextMenu &&

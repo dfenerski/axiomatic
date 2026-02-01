@@ -47,6 +47,13 @@ pub fn run() {
             commands::get_note_image,
             commands::export_notes_for_book,
             commands::migrate_notes_from_json,
+            commands::list_tags,
+            commands::create_tag,
+            commands::delete_tag,
+            commands::update_tag_color,
+            commands::tag_book,
+            commands::untag_book,
+            commands::list_book_tags_all,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
