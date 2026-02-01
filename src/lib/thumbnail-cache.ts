@@ -5,7 +5,7 @@ interface CachedThumbnail {
 
 const DB_NAME = 'axiomatic'
 const STORE_NAME = 'thumbnails'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 let dbPromise: Promise<IDBDatabase> | null = null
 
@@ -14,9 +14,12 @@ function getDB(): Promise<IDBDatabase> {
     dbPromise = new Promise((resolve, reject) => {
       const req = indexedDB.open(DB_NAME, DB_VERSION)
       req.onupgradeneeded = () => {
-        if (!req.result.objectStoreNames.contains(STORE_NAME)) {
-          req.result.createObjectStore(STORE_NAME)
+        const db = req.result
+        // v2: wipe stale thumbnails cached from the old readFile path
+        if (db.objectStoreNames.contains(STORE_NAME)) {
+          db.deleteObjectStore(STORE_NAME)
         }
+        db.createObjectStore(STORE_NAME)
       }
       req.onsuccess = () => resolve(req.result)
       req.onerror = () => reject(req.error)

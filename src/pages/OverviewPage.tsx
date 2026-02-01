@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState, type RefObject } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api/core'
 import { useTextbooks } from '../hooks/useTextbooks'
@@ -6,11 +6,14 @@ import { useDirectories } from '../hooks/useDirectories'
 import { useProgress } from '../hooks/useProgress'
 import { useStarred } from '../hooks/useStarred'
 import { useVimOverview } from '../hooks/useVimOverview'
+import { useBatchedRender } from '../hooks/useBatchedRender'
+import { useSyncStatus } from '../hooks/useSyncStatus'
 import { TileGrid } from '../components/TileGrid'
 import { BookTile } from '../components/BookTile'
 import { ContextMenu } from '../components/ContextMenu'
 import type { MenuItem } from '../components/ContextMenu'
 import { ThemeToggle } from '../components/ThemeToggle'
+import { SyncStatus } from '../components/SyncStatus'
 import { DirectoryExplorer } from '../components/DirectoryExplorer'
 
 interface MenuState {
@@ -33,20 +36,62 @@ export function OverviewPage() {
   const [explorerOpen, setExplorerOpen] = useState(false)
   const filterInputRef = useRef<HTMLInputElement>(null)
 
-  const matchesFilter = (title: string) =>
-    !filterQuery || title.toLowerCase().includes(filterQuery.toLowerCase())
+  const matchesFilter = useCallback(
+    (title: string) =>
+      !filterQuery || title.toLowerCase().includes(filterQuery.toLowerCase()),
+    [filterQuery],
+  )
 
-  const starredBooks = textbooks.filter((b) => starred[b.slug] && matchesFilter(b.title))
-  const otherBooks = textbooks
-    .filter((b) => !starred[b.slug] && matchesFilter(b.title))
-    .sort((a, b) => {
-      const aTime = progress[a.slug]?.lastReadAt ?? ''
-      const bTime = progress[b.slug]?.lastReadAt ?? ''
-      return bTime.localeCompare(aTime)
-    })
-  const slugs = [...starredBooks, ...otherBooks].map((b) => b.slug)
+  const { starredBooks, dirSections, slugs, sectionSizes } = useMemo(() => {
+    const starredBooks = textbooks.filter(
+      (b) => starred[b.slug] && matchesFilter(b.title),
+    )
 
-  const { selectedIndex } = useVimOverview(slugs, gridRef, starredBooks.length)
+    // Group non-starred books by directory, preserving directory order
+    const dirMap = new Map<number, typeof textbooks>()
+    for (const dir of directories) {
+      dirMap.set(dir.id, [])
+    }
+    for (const book of textbooks) {
+      if (starred[book.slug] || !matchesFilter(book.title)) continue
+      const arr = dirMap.get(book.dir_id)
+      if (arr) arr.push(book)
+    }
+
+    // Sort books within each directory by last-read time
+    const dirSections: { dir: (typeof directories)[number]; books: typeof textbooks }[] = []
+    for (const dir of directories) {
+      const books = dirMap.get(dir.id) ?? []
+      if (books.length === 0) continue
+      books.sort((a, b) => {
+        const aTime = progress[a.slug]?.lastReadAt ?? ''
+        const bTime = progress[b.slug]?.lastReadAt ?? ''
+        return bTime.localeCompare(aTime)
+      })
+      dirSections.push({ dir, books })
+    }
+
+    // Build flat slug array and section sizes
+    const slugs: string[] = []
+    const sectionSizes: number[] = []
+
+    if (starredBooks.length > 0) {
+      sectionSizes.push(starredBooks.length)
+      for (const b of starredBooks) slugs.push(b.slug)
+    }
+    for (const sec of dirSections) {
+      sectionSizes.push(sec.books.length)
+      for (const b of sec.books) slugs.push(b.slug)
+    }
+
+    return { starredBooks, dirSections, slugs, sectionSizes }
+  }, [textbooks, directories, starred, matchesFilter, progress])
+
+  const totalItems = slugs.length
+  const renderLimit = useBatchedRender(totalItems)
+  const syncStatus = useSyncStatus(loading, totalItems, renderLimit)
+
+  const { selectedIndex } = useVimOverview(slugs, gridRef, sectionSizes)
 
   const handleContextMenu = useCallback(
     (slug: string, x: number, y: number) => {
@@ -68,6 +113,18 @@ export function OverviewPage() {
       refresh()
     },
     [removeDir, refresh],
+  )
+
+  // Stable callback for onTotalPages — use ref to avoid depending on progress
+  const progressRef = useRef(progress) as RefObject<typeof progress>
+  progressRef.current = progress
+  const handleTotalPages = useCallback(
+    (slug: string, total: number) => {
+      if (!progressRef.current[slug]?.totalPages) {
+        update(slug, { totalPages: total })
+      }
+    },
+    [update],
   )
 
   const menuItems: MenuItem[] = menu
@@ -133,63 +190,98 @@ export function OverviewPage() {
     )
   }
 
-  if (loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center bg-[#fdf6e3] dark:bg-[#002b36]">
-        <p className="text-[#657b83] dark:text-[#93a1a1]">Loading...</p>
-      </div>
-    )
-  }
+  // Progressive rendering: track how many items we've emitted across sections
+  let remaining = renderLimit
+  let flatOffset = 0
+  let gridRefAssigned = false
 
-  const renderTile = (book: (typeof textbooks)[number], flatIndex: number) => (
-    <BookTile
-      key={book.slug}
-      slug={book.slug}
-      title={book.title}
-      fullPath={book.full_path}
-      progress={progress[book.slug]}
-      starred={!!starred[book.slug]}
-      selected={selectedIndex === flatIndex}
-      onToggleStar={toggle}
-      onContextMenu={handleContextMenu}
-      onTotalPages={(total) => {
-        if (!progress[book.slug]?.totalPages) {
-          update(book.slug, { totalPages: total })
-        }
-      }}
-    />
-  )
+  const getGridRef = () => {
+    if (!gridRefAssigned) {
+      gridRefAssigned = true
+      return gridRef
+    }
+    return undefined
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-[#fdf6e3] dark:bg-[#002b36]">
       <div className="min-h-0 flex-1 overflow-y-auto">
-      {starredBooks.length > 0 && (
+      {loading ? (
+        <div className="flex flex-1 items-center justify-center py-20">
+          <p className="text-[#657b83] dark:text-[#93a1a1]">Loading...</p>
+        </div>
+      ) : (<>
+      {starredBooks.length > 0 && remaining > 0 && (
         <section>
           <h2 className="px-4 pt-4 text-sm font-medium text-[#657b83] dark:text-[#93a1a1]">
             Starred
           </h2>
-          <TileGrid gridRef={gridRef}>
-            {starredBooks.map((book, i) => renderTile(book, i))}
+          <TileGrid gridRef={getGridRef()}>
+            {starredBooks.slice(0, remaining).map((book, i) => {
+              const idx = flatOffset + i
+              return (
+                <BookTile
+                  key={book.slug}
+                  slug={book.slug}
+                  title={book.title}
+                  fullPath={book.full_path}
+                  progress={progress[book.slug]}
+                  starred={!!starred[book.slug]}
+                  selected={selectedIndex === idx}
+                  onToggleStar={toggle}
+                  onContextMenu={handleContextMenu}
+                  onTotalPages={handleTotalPages}
+                />
+              )
+            })}
           </TileGrid>
+          {(() => {
+            const shown = Math.min(starredBooks.length, remaining)
+            remaining -= shown
+            flatOffset += starredBooks.length
+            return null
+          })()}
         </section>
       )}
-      <section>
-        {starredBooks.length > 0 && (
-          <h2 className="px-4 pt-2 text-sm font-medium text-[#657b83] dark:text-[#93a1a1]">
-            All Books
-          </h2>
-        )}
-        <TileGrid gridRef={starredBooks.length === 0 ? gridRef : undefined}>
-          {otherBooks.map((book, i) =>
-            renderTile(book, starredBooks.length + i),
-          )}
-        </TileGrid>
-      </section>
+      {dirSections.map((sec) => {
+        if (remaining <= 0) {
+          flatOffset += sec.books.length
+          return null
+        }
+        const sectionStart = flatOffset
+        const booksToShow = sec.books.slice(0, remaining)
+        remaining -= booksToShow.length
+        flatOffset += sec.books.length
+        return (
+          <section key={sec.dir.id}>
+            <h2 className="px-4 pt-4 text-sm font-medium text-[#657b83] dark:text-[#93a1a1]">
+              {sec.dir.label}
+            </h2>
+            <TileGrid gridRef={getGridRef()}>
+              {booksToShow.map((book, i) => (
+                <BookTile
+                  key={book.slug}
+                  slug={book.slug}
+                  title={book.title}
+                  fullPath={book.full_path}
+                  progress={progress[book.slug]}
+                  starred={!!starred[book.slug]}
+                  selected={selectedIndex === sectionStart + i}
+                  onToggleStar={toggle}
+                  onContextMenu={handleContextMenu}
+                  onTotalPages={handleTotalPages}
+                />
+              ))}
+            </TileGrid>
+          </section>
+        )
+      })}
       {textbooks.length === 0 && directories.length > 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-[#93a1a1] dark:text-[#657b83]">
           <p className="text-sm">No PDFs found in attached directories.</p>
         </div>
       )}
+      </>)}
       </div>
       <footer className="flex h-10 shrink-0 items-center gap-1 border-t border-[#eee8d5] bg-[#fdf6e3] px-3 dark:border-[#073642] dark:bg-[#002b36]">
         {filterOpen ? (
@@ -247,6 +339,7 @@ export function OverviewPage() {
           </svg>
         </button>
         <ThemeToggle />
+        <SyncStatus {...syncStatus} />
       </footer>
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} items={menuItems} onClose={closeMenu} />

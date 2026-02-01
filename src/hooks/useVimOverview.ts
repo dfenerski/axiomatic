@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 export function useVimOverview(
   slugs: string[],
   gridRef: React.RefObject<HTMLDivElement | null>,
-  starredCount: number,
+  sectionSizes: number[],
 ) {
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const columnsRef = useRef(1)
@@ -38,12 +38,26 @@ export function useVimOverview(
       const count = slugs.length
       if (count === 0) return
 
-      // Helper: given a flat index, return the section-local offset and section start
-      const section = (idx: number) => {
-        if (starredCount > 0 && idx < starredCount) {
-          return { start: 0, size: starredCount, local: idx }
+      // Build cumulative boundaries from sectionSizes
+      const boundaries: number[] = []
+      let cum = 0
+      for (const size of sectionSizes) {
+        if (size > 0) {
+          boundaries.push(cum)
+          cum += size
         }
-        return { start: starredCount, size: count - starredCount, local: idx - starredCount }
+      }
+
+      // Helper: given a flat index, return the section start, size, and local offset
+      const section = (idx: number) => {
+        for (let i = boundaries.length - 1; i >= 0; i--) {
+          if (idx >= boundaries[i]) {
+            const start = boundaries[i]
+            const end = i + 1 < boundaries.length ? boundaries[i + 1] : count
+            return { start, size: end - start, local: idx - start, sectionIdx: i }
+          }
+        }
+        return { start: 0, size: count, local: idx, sectionIdx: 0 }
       }
 
       switch (e.key) {
@@ -64,9 +78,9 @@ export function useVimOverview(
             }
 
             // At the last row of this section — try crossing to the next
-            if (sec.start === 0 && starredCount > 0 && count > starredCount) {
-              // From starred → other section, same column
-              const target = starredCount + col
+            if (sec.sectionIdx + 1 < boundaries.length) {
+              const nextStart = boundaries[sec.sectionIdx + 1]
+              const target = nextStart + col
               return target < count ? target : count - 1
             }
 
@@ -89,11 +103,13 @@ export function useVimOverview(
             }
 
             // At the first row of this section — try crossing to the previous
-            if (sec.start === starredCount && starredCount > 0) {
-              // From other → starred section, land on last row, same column
-              const lastStarredRow = Math.floor((starredCount - 1) / cols)
-              const target = lastStarredRow * cols + col
-              return target < starredCount ? target : starredCount - 1
+            if (sec.sectionIdx > 0) {
+              const prevStart = boundaries[sec.sectionIdx - 1]
+              const prevEnd = boundaries[sec.sectionIdx]
+              const prevSize = prevEnd - prevStart
+              const lastPrevRow = Math.floor((prevSize - 1) / cols)
+              const target = prevStart + lastPrevRow * cols + col
+              return target < prevEnd ? target : prevEnd - 1
             }
 
             return prev
@@ -133,7 +149,7 @@ export function useVimOverview(
 
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [slugs, starredCount, selectedIndex, navigate])
+  }, [slugs, sectionSizes, selectedIndex, navigate])
 
   return { selectedIndex }
 }

@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { readFile } from '@tauri-apps/plugin-fs'
 import { Document, Page } from 'react-pdf'
 import {
   getCachedThumbnail,
   setCachedThumbnail,
 } from '../lib/thumbnail-cache'
+import { enqueue } from '../lib/load-queue'
 
 interface Props {
   file: string
@@ -13,15 +13,43 @@ interface Props {
   onTotalPages?: (total: number) => void
 }
 
+const SKELETON = (
+  <div className="relative aspect-[3/4] w-full overflow-hidden rounded bg-[#eee8d5] dark:bg-[#073642]">
+    <div className="absolute inset-0 animate-pulse bg-[#93a1a1] dark:bg-[#073642]" />
+  </div>
+)
+
 export function PdfThumbnail({ file, fullPath, cacheKey, onTotalPages }: Props) {
   const key = cacheKey ?? file
+  const [visible, setVisible] = useState(false)
   const [cachedUrl, setCachedUrl] = useState<string | null>(null)
   const [cacheChecked, setCacheChecked] = useState(false)
-  const [pdfData, setPdfData] = useState<{ data: Uint8Array } | null>(null)
+  const [ready, setReady] = useState(false)
+  const sentinelRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const totalPagesRef = useRef(0)
+  const resolveRender = useRef<(() => void) | null>(null)
 
+  // Observe visibility — once in viewport (with 200px margin), start loading
   useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin: '200px' },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  // Check cache only once visible
+  useEffect(() => {
+    if (!visible) return
     let cancelled = false
     getCachedThumbnail(key).then((cached) => {
       if (cancelled) return
@@ -35,24 +63,54 @@ export function PdfThumbnail({ file, fullPath, cacheKey, onTotalPages }: Props) 
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key])
+  }, [key, visible])
 
-  // Load PDF bytes via Tauri FS plugin to avoid cross-origin canvas tainting
+  // Acquire a queue slot, then set ready so <Document> mounts with the asset URL.
+  // The queue slot is held until the Page render completes (or fails/unmounts),
+  // so only MAX_CONCURRENT PDFs are parsed by pdfjs-dist at once.
+  // This avoids readFile entirely — pdfjs-dist's worker fetches the asset URL
+  // directly, keeping large binary data off the main thread.
   useEffect(() => {
     if (cachedUrl || !cacheChecked || !fullPath) return
     let cancelled = false
-    readFile(fullPath).then((bytes) => {
-      if (cancelled) return
-      setPdfData({ data: bytes })
-    }).catch((err) => {
-      console.error('Failed to read PDF:', fullPath, err)
-    })
-    return () => { cancelled = true }
+    enqueue(
+      () =>
+        new Promise<void>((resolve) => {
+          if (cancelled) {
+            resolve()
+            return
+          }
+          resolveRender.current = resolve
+          setReady(true)
+        }),
+    )
+    return () => {
+      cancelled = true
+      // Release queue slot if component unmounts before render completes
+      if (resolveRender.current) {
+        resolveRender.current()
+        resolveRender.current = null
+      }
+    }
   }, [cachedUrl, cacheChecked, fullPath])
+
+  // Release queue slot helper — called on render success or error
+  const releaseSlot = () => {
+    if (resolveRender.current) {
+      resolveRender.current()
+      resolveRender.current = null
+    }
+  }
+
+  if (!visible) {
+    return (
+      <div ref={sentinelRef} className="relative aspect-[3/4] w-full overflow-hidden rounded bg-[#eee8d5] dark:bg-[#073642]" />
+    )
+  }
 
   if (cachedUrl) {
     return (
-      <div className="relative aspect-[3/4] w-full overflow-hidden rounded bg-[#eee8d5] dark:bg-[#073642]">
+      <div ref={sentinelRef} className="relative aspect-[3/4] w-full overflow-hidden rounded bg-[#eee8d5] dark:bg-[#073642]">
         <img
           src={cachedUrl}
           alt=""
@@ -62,30 +120,30 @@ export function PdfThumbnail({ file, fullPath, cacheKey, onTotalPages }: Props) 
     )
   }
 
-  if (!cacheChecked || (!pdfData && fullPath)) {
+  if (!cacheChecked || !ready) {
     return (
-      <div className="relative aspect-[3/4] w-full overflow-hidden rounded bg-[#eee8d5] dark:bg-[#073642]">
+      <div ref={sentinelRef} className="relative aspect-[3/4] w-full overflow-hidden rounded bg-[#eee8d5] dark:bg-[#073642]">
         <div className="absolute inset-0 animate-pulse bg-[#93a1a1] dark:bg-[#073642]" />
       </div>
     )
   }
 
-  const fileSource = pdfData ?? file
-
   return (
     <div
-      ref={containerRef}
+      ref={(el) => {
+        (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+        (sentinelRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+      }}
       className="relative aspect-[3/4] w-full overflow-hidden rounded bg-[#eee8d5] dark:bg-[#073642]"
     >
       <Document
-        file={fileSource}
-        loading={
-          <div className="absolute inset-0 animate-pulse bg-[#93a1a1] dark:bg-[#073642]" />
-        }
+        file={file}
+        loading={SKELETON}
         onLoadSuccess={(pdf) => {
           totalPagesRef.current = pdf.numPages
           onTotalPages?.(pdf.numPages)
         }}
+        onLoadError={releaseSlot}
       >
         <Page
           pageNumber={1}
@@ -108,7 +166,9 @@ export function PdfThumbnail({ file, fullPath, cacheKey, onTotalPages }: Props) 
                 // Canvas tainted — skip caching, live render is fine
               }
             }
+            releaseSlot()
           }}
+          onRenderError={releaseSlot}
         />
       </Document>
     </div>

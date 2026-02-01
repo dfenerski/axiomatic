@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Link } from 'react-router-dom'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import type { BookProgress } from '../types/progress'
@@ -11,11 +12,11 @@ interface Props {
   starred?: boolean
   selected?: boolean
   onToggleStar?: (slug: string) => void
-  onTotalPages?: (total: number) => void
+  onTotalPages?: (slug: string, total: number) => void
   onContextMenu?: (slug: string, x: number, y: number) => void
 }
 
-export function BookTile({
+export const BookTile = memo(function BookTile({
   slug,
   title,
   fullPath,
@@ -46,7 +47,7 @@ export function BookTile({
           file={pdfUrl}
           fullPath={fullPath}
           cacheKey={slug}
-          onTotalPages={onTotalPages}
+          onTotalPages={onTotalPages ? (total) => onTotalPages(slug, total) : undefined}
         />
         {progressText && (
           <span className="absolute bottom-2 right-2 rounded bg-black/70 px-2 py-0.5 text-xs font-medium text-white">
@@ -79,4 +80,14 @@ export function BookTile({
       </span>
     </Link>
   )
-}
+}, (prev, next) =>
+  prev.slug === next.slug &&
+  prev.title === next.title &&
+  prev.fullPath === next.fullPath &&
+  prev.starred === next.starred &&
+  prev.selected === next.selected &&
+  prev.onToggleStar === next.onToggleStar &&
+  prev.onTotalPages === next.onTotalPages &&
+  prev.onContextMenu === next.onContextMenu &&
+  prev.progress?.currentPage === next.progress?.currentPage &&
+  prev.progress?.totalPages === next.progress?.totalPages)

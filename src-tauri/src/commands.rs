@@ -106,49 +106,55 @@ pub fn remove_directory(id: i64, state: State<'_, DbState>) -> Result<(), String
 }
 
 #[tauri::command]
-pub fn list_textbooks(state: State<'_, DbState>) -> Result<Vec<Textbook>, String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
-    let dirs = query_all_directories(&conn)?;
+pub async fn list_textbooks(state: State<'_, DbState>) -> Result<Vec<Textbook>, String> {
+    let dirs = {
+        let conn = state.0.lock().map_err(|e| e.to_string())?;
+        query_all_directories(&conn)?
+    };
 
-    let mut textbooks = Vec::new();
-    for dir in &dirs {
-        let dir_path = Path::new(&dir.path);
-        if !dir_path.is_dir() {
-            continue;
-        }
-        for entry in WalkDir::new(dir_path).max_depth(1).into_iter().flatten() {
-            let path = entry.path();
-            if path.is_file()
-                && path
-                    .extension()
-                    .map(|e| e.to_ascii_lowercase() == "pdf")
-                    .unwrap_or(false)
-            {
-                let file_name = path
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_string();
-                let stem = path
-                    .file_stem()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_string();
-                let slug = format!("{}_{}", dir.id, sanitize_slug(&stem));
-                let title = title_from_stem(&stem);
-                let full_path = path.to_string_lossy().to_string();
-                textbooks.push(Textbook {
-                    slug,
-                    title,
-                    file: file_name,
-                    dir_id: dir.id,
-                    dir_path: dir.path.clone(),
-                    full_path,
-                });
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut textbooks = Vec::new();
+        for dir in &dirs {
+            let dir_path = Path::new(&dir.path);
+            if !dir_path.is_dir() {
+                continue;
+            }
+            for entry in WalkDir::new(dir_path).into_iter().flatten() {
+                let path = entry.path();
+                if path.is_file()
+                    && path
+                        .extension()
+                        .map(|e| e.to_ascii_lowercase() == "pdf")
+                        .unwrap_or(false)
+                {
+                    let file_name = path
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
+                    let stem = path
+                        .file_stem()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
+                    let slug = format!("{}_{}", dir.id, sanitize_slug(&stem));
+                    let title = title_from_stem(&stem);
+                    let full_path = path.to_string_lossy().to_string();
+                    textbooks.push(Textbook {
+                        slug,
+                        title,
+                        file: file_name,
+                        dir_id: dir.id,
+                        dir_path: dir.path.clone(),
+                        full_path,
+                    });
+                }
             }
         }
-    }
-    Ok(textbooks)
+        Ok(textbooks)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
