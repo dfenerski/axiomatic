@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { Document, Page } from 'react-pdf'
 import {
   getCachedThumbnail,
@@ -19,7 +19,7 @@ const SKELETON = (
   </div>
 )
 
-export function PdfThumbnail({ file, fullPath, cacheKey, onTotalPages }: Props) {
+export const PdfThumbnail = memo(function PdfThumbnail({ file, fullPath, cacheKey, onTotalPages }: Props) {
   const key = cacheKey ?? file
   const [visible, setVisible] = useState(false)
   const [cachedUrl, setCachedUrl] = useState<string | null>(null)
@@ -173,4 +173,7 @@ export function PdfThumbnail({ file, fullPath, cacheKey, onTotalPages }: Props) 
       </Document>
     </div>
   )
-}
+}, (prev, next) =>
+  prev.file === next.file &&
+  prev.fullPath === next.fullPath &&
+  prev.cacheKey === next.cacheKey)

@@ -39,7 +39,7 @@ export const BookTile = memo(function BookTile({
   return (
     <Link
       to={`/read/${slug}`}
-      className={`group flex flex-col gap-2 rounded-lg p-2 transition hover:bg-[#eee8d5] dark:hover:bg-[#073642] ${selected ? 'ring-2 ring-[#268bd2] bg-[#268bd2]/10 dark:bg-[#268bd2]/20' : ''}`}
+      className={`group flex flex-col gap-2 rounded-lg p-2 hover:bg-[#eee8d5] dark:hover:bg-[#073642] ${selected ? 'ring-2 ring-[#268bd2] bg-[#268bd2]/10 dark:bg-[#268bd2]/20' : ''}`}
       onContextMenu={(e) => {
         e.preventDefault()
         onContextMenu?.(slug, e.clientX, e.clientY)
@@ -63,7 +63,7 @@ export const BookTile = memo(function BookTile({
             e.stopPropagation()
             onToggleStar?.(slug)
           }}
-          className="absolute top-1.5 right-1.5 rounded-full bg-black/40 p-1 text-white opacity-0 transition hover:bg-black/60 group-hover:opacity-100 aria-[pressed=true]:opacity-100"
+          className="absolute top-1.5 right-1.5 rounded-full bg-black/40 p-1 text-white opacity-0 hover:bg-black/60 group-hover:opacity-100 aria-[pressed=true]:opacity-100"
           aria-pressed={!!starred}
           aria-label={starred ? 'Unstar book' : 'Star book'}
         >
@@ -78,7 +78,7 @@ export const BookTile = memo(function BookTile({
           </svg>
         </button>
         {tags && tags.length > 0 && (
-          <div className="absolute bottom-0 left-0 right-0 flex flex-wrap gap-1 p-1.5 opacity-0 transition group-hover:opacity-100">
+          <div className="absolute bottom-0 left-0 right-0 flex flex-wrap gap-1 p-1.5 opacity-0 group-hover:opacity-100">
             {tags.slice(0, 3).map((t) => (
               <span
                 key={t.id}
@@ -96,7 +96,7 @@ export const BookTile = memo(function BookTile({
           </div>
         )}
       </div>
-      <span className="truncate text-sm font-medium text-[#073642] group-hover:text-[#073642] dark:text-[#eee8d5] dark:group-hover:text-[#fdf6e3]">
+      <span className="truncate text-sm font-medium text-[#073642] dark:text-[#eee8d5] dark:group-hover:text-[#fdf6e3]">
         {title}
       </span>
     </Link>

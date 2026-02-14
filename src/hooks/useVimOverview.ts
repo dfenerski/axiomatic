@@ -61,6 +61,7 @@ export function useVimOverview(
       }
 
       switch (e.key) {
+        case 'ArrowDown':
         case 'j': {
           e.preventDefault()
           setSelectedIndex((prev) => {
@@ -88,6 +89,7 @@ export function useVimOverview(
           })
           break
         }
+        case 'ArrowUp':
         case 'k': {
           e.preventDefault()
           setSelectedIndex((prev) => {
@@ -116,6 +118,7 @@ export function useVimOverview(
           })
           break
         }
+        case 'ArrowLeft':
         case 'h': {
           e.preventDefault()
           setSelectedIndex((prev) => {
@@ -126,6 +129,7 @@ export function useVimOverview(
           })
           break
         }
+        case 'ArrowRight':
         case 'l': {
           e.preventDefault()
           setSelectedIndex((prev) => {
