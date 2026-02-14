@@ -36,18 +36,23 @@ npm run dev
 
 ## Roadmap
 
-- highlight pdf content - `sioyek`, but better
-- bookmark pdf page / paragraph - `sioyek`, but better
-- pdf overview as in `evince`
-- more vim nav keybinds:nav back from reader to overview with ctrl-h
-- live-watch for OS changes
-- better app icon, naming in system tray when exported
-- ability to create a parallel hierarchical structure to organize the files
-- export
-    - notes: copy, export, print
-    - valut: export/import
-    - print pdfs together with notes? 
-- drag docs into app starts tracking them
+- [ ] more vim nav keybinds:nav back from reader to overview with ctrl-h
+- [ ] open file with axiomatic
+- [ ] arrows nav
+- [ ] better app icon, naming in system tray when exported
+- [ ] clip pdf selection
+
+- [ ] highlight pdf content - `sioyek`, but better
+- [ ] bookmark pdf page / paragraph - `sioyek`, but better
+- [ ] pdf overview as in `evince`
+
+- [ ] live-watch for OS changes
+- [ ] ability to create a parallel hierarchical structure to organize the files
+- [ ] export
+    - [ ] notes: copy, export, print
+    - [ ] valut: export/import
+    - [ ] print pdfs together with notes? 
+- [ ] drag docs into app starts tracking them
 
 
 ## License
