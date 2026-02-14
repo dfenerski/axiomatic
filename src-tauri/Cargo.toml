@@ -24,4 +24,6 @@ tauri-plugin-log = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 rusqlite = { version = "0.33", features = ["bundled"] }
+tauri-plugin-single-instance = "2"
+url = "2"
 walkdir = "2"
