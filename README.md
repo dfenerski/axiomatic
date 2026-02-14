@@ -42,9 +42,14 @@ npm run dev
     - [ ] zoom in and out with ctrl-+/-
 - [ ] open file with axiomatic
 - [ ] better app icon, naming in system tray when exported
-- [ ] gtk native header / double click on header expands it
+- [ ] gtk native header
+    - [ ] native icons
+    - [ ] native interactivity e.g. double click expands window
 - [ ] clip pdf selection
 - [ ] tabs
+
+- [ ]  bug: pdf bages a re being cut off
+- [ ]  bug: flickering light mode
 
 - [ ] highlight pdf content - `sioyek`, but better
 - [ ] bookmark pdf page / paragraph - `sioyek`, but better
