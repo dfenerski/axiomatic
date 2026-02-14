@@ -34,7 +34,8 @@ export function ReaderPage() {
   const pdfContainerRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<EditorView | null>(null)
 
-  const { activePane } = useVimReader({ pdfContainerRef, notesOpen, setNotesOpen, editorRef })
+  const handleBack = useCallback(() => navigate('/'), [navigate])
+  const { activePane } = useVimReader({ pdfContainerRef, notesOpen, setNotesOpen, editorRef, zoom, onZoomChange: setZoom, onBack: handleBack })
   const search = useSearch(pdfDocument)
 
   const currentPageRef = useRef(currentPage)
