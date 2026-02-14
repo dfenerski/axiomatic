@@ -36,24 +36,12 @@ npm run dev
 
 ## Roadmap
 
-- [ ] more vim nav keybinds:
-    - [ ] nav back from reader to overview with ctrl-h
-    - [ ] arrow key nav 
-    - [ ] zoom in and out with ctrl-+/-
-- [ ] open file with axiomatic
-- [ ] better app icon, naming in system tray when exported
-- [ ] gtk native header
-    - [ ] native icons
-    - [ ] native interactivity e.g. double click expands window
 - [ ] clip pdf selection
-- [ ] tabs
-
 - [ ]  bug: pdf bages a re being cut off
-- [ ]  bug: flickering light mode
-
+- [ ] pdf overview as in `evince`
 - [ ] highlight pdf content - `sioyek`, but better
 - [ ] bookmark pdf page / paragraph - `sioyek`, but better
-- [ ] pdf overview as in `evince`
+- [ ] tabs
 
 - [ ] live-watch for OS changes
 - [ ] ability to create a parallel hierarchical structure to organize the files
