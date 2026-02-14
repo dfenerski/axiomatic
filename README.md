@@ -51,6 +51,8 @@ npm run dev
     - [ ] print pdfs together with notes? 
 - [ ] drag docs into app starts tracking them
 
+- [ ] ios / android / windows build targets
+
 
 ## License
 
