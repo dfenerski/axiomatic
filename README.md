@@ -36,11 +36,15 @@ npm run dev
 
 ## Roadmap
 
-- [ ] more vim nav keybinds:nav back from reader to overview with ctrl-h
+- [ ] more vim nav keybinds:
+    - [ ] nav back from reader to overview with ctrl-h
+    - [ ] arrow key nav 
+    - [ ] zoom in and out with ctrl-+/-
 - [ ] open file with axiomatic
-- [ ] arrows nav
 - [ ] better app icon, naming in system tray when exported
+- [ ] gtk native header / double click on header expands it
 - [ ] clip pdf selection
+- [ ] tabs
 
 - [ ] highlight pdf content - `sioyek`, but better
 - [ ] bookmark pdf page / paragraph - `sioyek`, but better
