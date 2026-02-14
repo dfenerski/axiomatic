@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 
 type Theme = 'system' | 'light' | 'dark'
 type Resolved = 'light' | 'dark'
@@ -33,6 +34,8 @@ function resolve(theme: Theme): Resolved {
 function apply(theme: Theme) {
   const dark = theme === 'dark' || (theme === 'system' && systemIsDark())
   document.documentElement.classList.toggle('dark', dark)
+  // Sync GTK header bar theme on Linux (native decorations)
+  getCurrentWindow().setTheme(dark ? 'dark' : 'light').catch(() => {})
 }
 
 function getSnapshot(): string {

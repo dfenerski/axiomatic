@@ -1,0 +1,14 @@
+{
+  "app": {
+    "windows": [{
+      "title": "Axiomatic",
+      "width": 1200,
+      "height": 800,
+      "resizable": true,
+      "fullscreen": false,
+      "decorations": true,
+      "shadow": true,
+      "transparent": false
+    }]
+  }
+}

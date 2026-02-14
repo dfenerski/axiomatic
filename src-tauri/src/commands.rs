@@ -8,6 +8,8 @@ use walkdir::WalkDir;
 
 use crate::models::{BookTagMapping, Directory, NoteRecord, Tag, Textbook};
 
+pub struct PendingFile(pub Mutex<Option<String>>);
+
 pub struct DbState(pub Mutex<Connection>);
 
 fn sanitize_slug(name: &str) -> String {
@@ -448,6 +450,68 @@ pub fn untag_book(book_slug: String, tag_id: i64, state: State<'_, DbState>) -> 
     )
     .map_err(|e| e.to_string())?;
     Ok(())
+}
+
+#[tauri::command]
+pub fn get_platform() -> String {
+    std::env::consts::OS.to_string()
+}
+
+#[tauri::command]
+pub fn open_file(file_path: String, state: State<'_, DbState>) -> Result<String, String> {
+    let path = Path::new(&file_path);
+    if !path.is_file() {
+        return Err(format!("File not found: {}", file_path));
+    }
+    if path
+        .extension()
+        .map(|e| e.to_ascii_lowercase() != "pdf")
+        .unwrap_or(true)
+    {
+        return Err(format!("Not a PDF file: {}", file_path));
+    }
+
+    let parent = path
+        .parent()
+        .ok_or("No parent directory")?
+        .to_string_lossy()
+        .to_string();
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+
+    // Find or insert directory
+    let dir_id: i64 = match conn.query_row(
+        "SELECT id FROM directories WHERE path = ?1",
+        rusqlite::params![parent],
+        |row| row.get(0),
+    ) {
+        Ok(id) => id,
+        Err(rusqlite::Error::QueryReturnedNoRows) => {
+            let label = Path::new(&parent)
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| parent.clone());
+            conn.execute(
+                "INSERT INTO directories (path, label) VALUES (?1, ?2)",
+                rusqlite::params![parent, label],
+            )
+            .map_err(|e| e.to_string())?;
+            conn.last_insert_rowid()
+        }
+        Err(e) => return Err(e.to_string()),
+    };
+
+    let stem = path
+        .file_stem()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+    let slug = format!("{}_{}", dir_id, sanitize_slug(&stem));
+    Ok(slug)
+}
+
+#[tauri::command]
+pub fn get_pending_file(state: State<'_, PendingFile>) -> Option<String> {
+    state.0.lock().ok().and_then(|mut f| f.take())
 }
 
 #[tauri::command]
