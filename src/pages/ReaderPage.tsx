@@ -27,7 +27,7 @@ export function ReaderPage() {
   const bookProgress = slug ? progress[slug] : undefined
 
   const { docInfo, loading: docLoading, error: docError } = useDocument(book?.full_path)
-  const { highlights, colorHighlights, bookmarkHighlights, highlightsForPage, createHighlight, deleteHighlight, deleteHighlightGroup } = useHighlights(slug)
+  const { colorHighlights, bookmarkHighlights, highlightsForPage, createHighlight, deleteHighlight, deleteHighlightGroup } = useHighlights(slug)
   const { tabs, openTab, closeTab, reopenTab, setActiveTab } = useTabs()
 
   // Register this book as a tab

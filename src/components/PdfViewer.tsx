@@ -621,7 +621,6 @@ const PdfViewerInner = React.forwardRef<PdfViewerHandle, Props>(function PdfView
               {textLayer && (
                 <TextLayer
                   textLayer={textLayer}
-                  pageWidth={layoutWidth}
                   pageHeight={pageHeight}
                 />
               )}
