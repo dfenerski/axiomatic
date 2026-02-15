@@ -3,11 +3,10 @@ import type { PageTextLayer } from '../hooks/usePageTextLayer'
 
 interface Props {
   textLayer: PageTextLayer
-  pageWidth: number
   pageHeight: number
 }
 
-export const TextLayer = memo(function TextLayer({ textLayer, pageWidth, pageHeight }: Props) {
+export const TextLayer = memo(function TextLayer({ textLayer, pageHeight }: Props) {
   return (
     <div
       className="absolute inset-0"

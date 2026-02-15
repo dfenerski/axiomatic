@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.2.0
+
+### Command palette
+
+- **Ctrl+P command palette** — floating overlay with fuzzy substring filtering, arrow key navigation, and Enter to execute. Available on both overview and reader pages via keyboard shortcut or toolbar button.
+- **Theme commands** — "Use OS theme" and "Switch to light/dark mode" accessible from the palette on any page.
+- **Reader commands** — toggle outline, notes, bookmarks, highlights, and zen mode from the palette. Shortcut hints displayed inline.
+- **`setTheme()` export** — `useTheme.ts` now exports a `setTheme(theme)` function for direct theme setting (used by the palette; `cycle` reuses it internally).
+
+### Zen mode
+
+- **Distraction-free reading** — toggle via command palette hides toolbar, tab bar, outline, bookmarks, and highlights panels.
+- **Notes in zen mode** — notes panel remains openable (Ctrl+L or command palette) for annotation while in zen mode.
+- **ESC to exit** — pressing Escape exits zen mode and restores all chrome.
+
+### Toolbar redesign
+
+- **Decluttered reader toolbar** — moved outline, notes, bookmarks, highlights, and theme toggle buttons into the command palette. Toolbar now shows: back, page counter, zoom, title (centered), search, and palette button.
+- **Removed ThemeToggle from overview** — theme switching now exclusively via command palette (Ctrl+P).
+- **Toolbar layout** — zoom controls moved to left section next to page counter; title centered; search and palette button on the right.
+
+### Keyboard handling
+
+- **Text field safety** — `useVimReader` and `ReaderPage` keyboard shortcuts now skip when focus is in an `<input>` or `<textarea>`. Fixes space/j/k/arrows triggering PDF scroll while typing in the search bar or command palette.
+
 ## v0.1.0
 
 ### PDFium migration

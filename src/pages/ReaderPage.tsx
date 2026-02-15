@@ -27,7 +27,7 @@ export function ReaderPage() {
   const bookProgress = slug ? progress[slug] : undefined
 
   const { docInfo, loading: docLoading, error: docError } = useDocument(book?.full_path)
-  const { highlights, colorHighlights, bookmarkHighlights, highlightsForPage, createHighlight, deleteHighlight, deleteHighlightGroup } = useHighlights(slug)
+  const { colorHighlights, bookmarkHighlights, highlightsForPage, createHighlight, deleteHighlight, deleteHighlightGroup } = useHighlights(slug)
   const { tabs, openTab, closeTab, reopenTab, setActiveTab } = useTabs()
 
   // Register this book as a tab
@@ -74,6 +74,7 @@ export function ReaderPage() {
   const [highlightsPaneWidth, setHighlightsPaneWidth] = useState(280)
   const [bookmarksOpen, setBookmarksOpen] = useState(false)
   const [bookmarksPaneWidth, setBookmarksPaneWidth] = useState(280)
+  const [zenMode, setZenMode] = useState(false)
   const [scrollRequest, setScrollRequest] = useState<{ page: number; seq: number } | null>(null)
   const [savedProgressPage, setSavedProgressPage] = useState<number | null>(null)
   const [outlinePaneWidth, setOutlinePaneWidth] = useState(200)
@@ -122,6 +123,9 @@ export function ReaderPage() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Skip when focus is in a text field (search bar, command palette, etc.)
+      const el = document.activeElement
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return
       const mod = e.ctrlKey || e.metaKey
       if (mod && e.key === 'f') {
         e.preventDefault()
@@ -149,6 +153,35 @@ export function ReaderPage() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [slug, tabs, handleTabClose, handleTabSelect, reopenTab, navigate])
+
+  // Listen for command palette custom events
+  useEffect(() => {
+    const handlers: Record<string, () => void> = {
+      'axiomatic:toggle-outline': () => setOutlineOpen((o) => !o),
+      'axiomatic:toggle-notes': () => setNotesOpen((o) => !o),
+      'axiomatic:toggle-bookmarks': () => setBookmarksOpen((o) => !o),
+      'axiomatic:toggle-highlights': () => setHighlightsOpen((o) => !o),
+      'axiomatic:toggle-zen': () => setZenMode((z) => !z),
+    }
+    const listeners = Object.entries(handlers).map(([event, handler]) => {
+      window.addEventListener(event, handler)
+      return () => window.removeEventListener(event, handler)
+    })
+    return () => listeners.forEach((unsub) => unsub())
+  }, [])
+
+  // ESC exits zen mode
+  useEffect(() => {
+    if (!zenMode) return
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setZenMode(false)
+      }
+    }
+    window.addEventListener('keydown', handleEsc)
+    return () => window.removeEventListener('keydown', handleEsc)
+  }, [zenMode])
 
   // Clear search when closing
   const handleToggleSearch = useCallback(() => {
@@ -327,39 +360,35 @@ export function ReaderPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <ReaderToolbar
-        title={book.title}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        zoom={zoom}
-        onZoomChange={handleZoomChange}
-        outlineOpen={outlineOpen}
-        onToggleOutline={() => setOutlineOpen((o) => !o)}
-        notesOpen={notesOpen}
-        onToggleNotes={() => setNotesOpen((o) => !o)}
-        highlightsOpen={highlightsOpen}
-        onToggleHighlights={() => setHighlightsOpen((o) => !o)}
-        bookmarksOpen={bookmarksOpen}
-        onToggleBookmarks={() => setBookmarksOpen((o) => !o)}
-        searchOpen={searchOpen}
-        onToggleSearch={handleToggleSearch}
-        searchQuery={search.query}
-        onSearchQueryChange={search.setQuery}
-        searchCurrentIndex={search.currentIndex}
-        searchTotalMatches={search.totalMatches}
-        onSearchNext={search.nextMatch}
-        onSearchPrev={search.prevMatch}
-        savedProgressPage={savedProgressPage}
-        onBackToProgress={handleBackToProgress}
-      />
-      <TabBar
-        tabs={tabs}
-        activeSlug={slug ?? null}
-        onSelect={handleTabSelect}
-        onClose={handleTabClose}
-      />
+      {!zenMode && (
+        <ReaderToolbar
+          title={book.title}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          zoom={zoom}
+          onZoomChange={handleZoomChange}
+          searchOpen={searchOpen}
+          onToggleSearch={handleToggleSearch}
+          searchQuery={search.query}
+          onSearchQueryChange={search.setQuery}
+          searchCurrentIndex={search.currentIndex}
+          searchTotalMatches={search.totalMatches}
+          onSearchNext={search.nextMatch}
+          onSearchPrev={search.prevMatch}
+          savedProgressPage={savedProgressPage}
+          onBackToProgress={handleBackToProgress}
+        />
+      )}
+      {!zenMode && (
+        <TabBar
+          tabs={tabs}
+          activeSlug={slug ?? null}
+          onSelect={handleTabSelect}
+          onClose={handleTabClose}
+        />
+      )}
       <div className="flex min-h-0 flex-1">
-        {outlineOpen && (
+        {!zenMode && outlineOpen && (
           <>
             <div
               className="shrink-0 overflow-hidden bg-[#fdf6e3] dark:bg-[#002b36]"
@@ -412,7 +441,7 @@ export function ReaderPage() {
             </div>
           </>
         )}
-        {bookmarksOpen && slug && (
+        {!zenMode && bookmarksOpen && slug && (
           <>
             <div
               className="w-1.5 shrink-0 cursor-col-resize bg-[#eee8d5] hover:bg-[#268bd2] active:bg-[#268bd2] dark:bg-[#073642] dark:hover:bg-[#268bd2] dark:active:bg-[#268bd2]"
@@ -429,7 +458,7 @@ export function ReaderPage() {
             </div>
           </>
         )}
-        {highlightsOpen && slug && (
+        {!zenMode && highlightsOpen && slug && (
           <>
             <div
               className="w-1.5 shrink-0 cursor-col-resize bg-[#eee8d5] hover:bg-[#268bd2] active:bg-[#268bd2] dark:bg-[#073642] dark:hover:bg-[#268bd2] dark:active:bg-[#268bd2]"

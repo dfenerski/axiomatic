@@ -13,8 +13,8 @@ import { TileGrid } from '../components/TileGrid'
 import { BookTile } from '../components/BookTile'
 import { ContextMenu } from '../components/ContextMenu'
 import type { MenuItem } from '../components/ContextMenu'
-import { ThemeToggle } from '../components/ThemeToggle'
 import { SyncStatus } from '../components/SyncStatus'
+import { togglePalette } from '../lib/palette'
 import { DirectoryExplorer } from '../components/DirectoryExplorer'
 import { TagManager } from '../components/TagManager'
 import { TagAssigner } from '../components/TagAssigner'
@@ -213,51 +213,6 @@ export function OverviewPage() {
     <div className="relative flex min-h-0 flex-1 flex-col bg-[#fdf6e3] dark:bg-[#002b36]">
       <div className="flex h-10 shrink-0 items-center border-b border-[#eee8d5] bg-[#fdf6e3] px-3 dark:border-[#073642] dark:bg-[#002b36]">
         <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
-          {filterOpen ? (
-            <div className="relative flex shrink-0 items-center">
-              <input
-                ref={filterInputRef}
-                type="text"
-                value={filterQuery}
-                onChange={(e) => setFilterQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') {
-                    setFilterQuery('')
-                    setFilterOpen(false)
-                  }
-                }}
-                placeholder="Filter books…"
-                className="h-7 w-48 rounded border border-[#93a1a1] bg-[#fdf6e3] pl-2 pr-7 text-sm text-[#073642] outline-none focus:border-blue-400 dark:border-[#073642] dark:bg-[#073642] dark:text-[#eee8d5] dark:focus:border-[#268bd2]"
-                autoFocus
-              />
-              {filterQuery && (
-                <button
-                  onClick={() => {
-                    setFilterQuery('')
-                    filterInputRef.current?.focus()
-                  }}
-                  className="absolute right-1.5 text-[#93a1a1] hover:text-[#586e75] dark:hover:text-[#93a1a1]"
-                  aria-label="Clear filter"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              )}
-            </div>
-          ) : (
-            <button
-              onClick={() => setFilterOpen(true)}
-              className="shrink-0 rounded p-1.5 text-[#657b83] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
-              aria-label="Filter books"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-            </button>
-          )}
           <button
             onClick={() => setExplorerOpen((o) => !o)}
             className="shrink-0 rounded p-1.5 text-[#657b83] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
@@ -314,7 +269,60 @@ export function OverviewPage() {
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1 pl-1">
-          <ThemeToggle />
+          {filterOpen ? (
+            <div className="relative flex shrink-0 items-center">
+              <input
+                ref={filterInputRef}
+                type="text"
+                value={filterQuery}
+                onChange={(e) => setFilterQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setFilterQuery('')
+                    setFilterOpen(false)
+                  }
+                }}
+                placeholder="Filter books…"
+                className="h-7 w-48 rounded border border-[#93a1a1] bg-[#fdf6e3] pl-2 pr-7 text-sm text-[#073642] outline-none focus:border-blue-400 dark:border-[#073642] dark:bg-[#073642] dark:text-[#eee8d5] dark:focus:border-[#268bd2]"
+                autoFocus
+              />
+              {filterQuery && (
+                <button
+                  onClick={() => {
+                    setFilterQuery('')
+                    filterInputRef.current?.focus()
+                  }}
+                  className="absolute right-1.5 text-[#93a1a1] hover:text-[#586e75] dark:hover:text-[#93a1a1]"
+                  aria-label="Clear filter"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={() => setFilterOpen(true)}
+              className="shrink-0 rounded p-1.5 text-[#657b83] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
+              aria-label="Filter books"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </button>
+          )}
+          <button
+            onClick={togglePalette}
+            className="shrink-0 rounded p-1.5 text-[#657b83] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
+            aria-label="Command palette"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z" />
+            </svg>
+          </button>
           <SyncStatus {...syncStatus} />
         </div>
       </div>

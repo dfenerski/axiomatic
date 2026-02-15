@@ -84,6 +84,16 @@ setInterval(pollOsTheme, POLL_INTERVAL)
 // Apply on load
 apply(getTheme())
 
+export function setTheme(theme: Theme) {
+  if (theme === 'system') {
+    localStorage.removeItem(STORAGE_KEY)
+  } else {
+    localStorage.setItem(STORAGE_KEY, theme)
+  }
+  apply(theme)
+  emit()
+}
+
 export function useTheme() {
   const snap = useSyncExternalStore(subscribe, getSnapshot)
   const { theme, resolved } = parseSnapshot(snap)

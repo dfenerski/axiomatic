@@ -1,8 +1,30 @@
+import { useEffect, useState } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 
 const appWindow = getCurrentWindow()
 
 export function Titlebar() {
+  const [maximized, setMaximized] = useState(false)
+
+  useEffect(() => {
+    appWindow.isMaximized().then(setMaximized)
+    const unlisten = appWindow.onResized(() => {
+      appWindow.isMaximized().then(setMaximized)
+    })
+    return () => { unlisten.then((f) => f()) }
+  }, [])
+
+  const iconProps = {
+    width: 12,
+    height: 12,
+    viewBox: '0 0 16 16',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 2,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+  }
+
   return (
     <div
       onMouseDown={(e) => {
@@ -29,17 +51,21 @@ export function Titlebar() {
           className="rounded p-1 text-[#657b83] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
           aria-label="Minimize"
         >
-          <svg width="12" height="12" viewBox="0 0 12 12">
-            <rect x="2" y="5.5" width="8" height="1" fill="currentColor" />
+          <svg {...iconProps}>
+            <path d="M4 12L12 12" />
           </svg>
         </button>
         <button
           onClick={() => appWindow.toggleMaximize()}
           className="rounded p-1 text-[#657b83] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
-          aria-label="Maximize"
+          aria-label={maximized ? 'Restore' : 'Maximize'}
         >
-          <svg width="12" height="12" viewBox="0 0 12 12">
-            <rect x="2" y="2" width="8" height="8" fill="none" stroke="currentColor" strokeWidth="1" />
+          <svg {...iconProps}>
+            {maximized ? (
+              <rect x="4" y="4" width="8" height="8" rx="2" />
+            ) : (
+              <rect x="2" y="2" width="12" height="12" rx="2" />
+            )}
           </svg>
         </button>
         <button
@@ -47,8 +73,8 @@ export function Titlebar() {
           className="rounded p-1 text-[#657b83] hover:bg-red-500 hover:text-white dark:text-[#93a1a1] dark:hover:bg-red-500 dark:hover:text-[#eee8d5]"
           aria-label="Close"
         >
-          <svg width="12" height="12" viewBox="0 0 12 12">
-            <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          <svg {...iconProps}>
+            <path d="M5 11L11 5M5 5L11 11" />
           </svg>
         </button>
       </div>

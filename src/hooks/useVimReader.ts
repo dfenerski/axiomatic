@@ -28,6 +28,13 @@ function isInNotesEditor(): boolean {
   return !!el.closest('.cm-editor')
 }
 
+function isInTextField(): boolean {
+  const el = document.activeElement
+  if (!el) return false
+  const tag = el.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || !!el.closest('.cm-editor')
+}
+
 export function useVimReader({
   pdfContainerRef,
   notesOpen,
@@ -80,6 +87,10 @@ export function useVimReader({
         }
         return
       }
+
+      // Skip all navigation keys when focus is in any text field
+      // (search bar, command palette, etc.)
+      if (isInTextField()) return
 
       // PDF mode
       switch (e.key) {
@@ -137,19 +148,18 @@ export function useVimReader({
     return () => window.removeEventListener('keydown', handler)
   }, [pdfContainerRef, notesOpen, setNotesOpen, editorRef, onZoomChange, onBack])
 
-  // Ctrl+wheel zoom
+  // Ctrl+wheel zoom — listen on window (capture) so we intercept before
+  // the WebView's built-in page zoom handler can consume the event
   useEffect(() => {
-    const container = pdfContainerRef.current
-    if (!container) return
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey) return
       e.preventDefault()
       const direction = e.deltaY < 0 ? ZOOM_FACTOR : 1 / ZOOM_FACTOR
       onZoomChange(clampZoom(zoomRef.current * direction))
     }
-    container.addEventListener('wheel', onWheel, { passive: false })
-    return () => container.removeEventListener('wheel', onWheel)
-  }, [pdfContainerRef, onZoomChange])
+    window.addEventListener('wheel', onWheel, { passive: false, capture: true })
+    return () => window.removeEventListener('wheel', onWheel, { capture: true })
+  }, [onZoomChange])
 
   return { activePane }
 }

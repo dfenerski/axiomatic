@@ -9,8 +9,10 @@ A local-first PDF textbook reader with vim-style navigation, per-page LaTeX note
 - **LaTeX math** rendering inline (`$E=mc^2$`) and in display blocks (`$$\sum x^2$$`)
 - **Image paste** directly into notes from clipboard
 - **Library management** -- scan directories for PDFs, star favourites, sort by last read
+- **Command palette** (`Ctrl+P`) -- fuzzy-search commands for panel toggles, theme switching, and zen mode
+- **Zen mode** -- hide all chrome for distraction-free reading; notes still openable
 - **Keyboard navigation** everywhere: `j/k` scrolling in the reader, `h/j/k/l` grid navigation in the library, `Ctrl+L` to open notes, `Ctrl+H` to close
-- **Solarized light & dark** themes with automatic OS detection
+- **Solarized light & dark** themes with automatic OS detection, switchable via command palette
 - **Local storage** -- all notes and images live in a SQLite database on your machine
 
 ## Install
@@ -36,20 +38,6 @@ npm run dev
 
 ## Roadmap
 
-
-- [ ] bug: pdf opening is still super slow despite all advancements
-- [ ] bug: scrolling when zoomed performance is causing freezes
-- [ ] bug: opening page from preview tab is super slow too
-- [ ] bug: closing a tab (means opening another?) is super slow too
-
-- [ ] clip pdf selection
-- [ ] zen mode / command palette
-
-- [x]  bug: pdf bages a re being cut off
-- [x] pdf overview as in `evince`
-- [x] highlight pdf content - `sioyek`, but better
-- [x] bookmark pdf page / paragraph - `sioyek`, but better
-- [x] tabs
 
 - [ ] live-watch for OS changes
 - [ ] ability to create a parallel hierarchical structure to organize the files

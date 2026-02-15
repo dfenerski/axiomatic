@@ -621,7 +621,6 @@ const PdfViewerInner = React.forwardRef<PdfViewerHandle, Props>(function PdfView
               {textLayer && (
                 <TextLayer
                   textLayer={textLayer}
-                  pageWidth={layoutWidth}
                   pageHeight={pageHeight}
                 />
               )}
@@ -702,6 +701,15 @@ const PdfViewerInner = React.forwardRef<PdfViewerHandle, Props>(function PdfView
         >
           {contextMenu.type === 'selection' && (
             <>
+              <button
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-[#586e75] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
+                onClick={() => handleHighlightColor('bookmark')}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                </svg>
+                Bookmark
+              </button>
               {HIGHLIGHT_COLORS.map((hc) => (
                 <button
                   key={hc.color}
@@ -715,15 +723,6 @@ const PdfViewerInner = React.forwardRef<PdfViewerHandle, Props>(function PdfView
                   Highlight {hc.label}
                 </button>
               ))}
-              <button
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-[#586e75] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
-                onClick={() => handleHighlightColor('bookmark')}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                </svg>
-                Bookmark
-              </button>
             </>
           )}
           {contextMenu.type === 'page' && (
