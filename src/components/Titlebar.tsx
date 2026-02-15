@@ -40,7 +40,7 @@ export function Titlebar() {
       className="flex h-9 shrink-0 select-none items-center justify-between border-b border-[#eee8d5] bg-[#fdf6e3] px-3 dark:border-[#073642] dark:bg-[#002b36]"
     >
       <div className="flex items-center gap-2 pointer-events-none">
-        <img src="/axiomatic.png" alt="" className="h-4 w-4" />
+        <img src="/Logo_light-02-01-scaled.svg" alt="" className="h-4 w-4" />
         <span className="text-xs font-semibold text-[#586e75] dark:text-[#93a1a1]">
           Axiomatic
         </span>

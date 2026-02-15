@@ -103,9 +103,19 @@ pub fn run() {
             let lib_path = app
                 .path()
                 .resource_dir()
-                .map(|d| d.join(lib_name))
                 .ok()
-                .filter(|p| p.exists())
+                .and_then(|d| {
+                    // Bundled: tauri preserves the resources/ subdirectory
+                    let nested = d.join("resources").join(lib_name);
+                    let flat = d.join(lib_name);
+                    if nested.exists() {
+                        Some(nested)
+                    } else if flat.exists() {
+                        Some(flat)
+                    } else {
+                        None
+                    }
+                })
                 .or_else(|| {
                     // Development fallback paths
                     [
