@@ -13,8 +13,8 @@ import { TileGrid } from '../components/TileGrid'
 import { BookTile } from '../components/BookTile'
 import { ContextMenu } from '../components/ContextMenu'
 import type { MenuItem } from '../components/ContextMenu'
-import { ThemeToggle } from '../components/ThemeToggle'
 import { SyncStatus } from '../components/SyncStatus'
+import { togglePalette } from '../lib/palette'
 import { DirectoryExplorer } from '../components/DirectoryExplorer'
 import { TagManager } from '../components/TagManager'
 import { TagAssigner } from '../components/TagAssigner'
@@ -314,7 +314,15 @@ export function OverviewPage() {
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1 pl-1">
-          <ThemeToggle />
+          <button
+            onClick={togglePalette}
+            className="shrink-0 rounded p-1.5 text-[#657b83] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
+            aria-label="Command palette"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z" />
+            </svg>
+          </button>
           <SyncStatus {...syncStatus} />
         </div>
       </div>

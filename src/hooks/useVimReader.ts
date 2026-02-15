@@ -28,6 +28,13 @@ function isInNotesEditor(): boolean {
   return !!el.closest('.cm-editor')
 }
 
+function isInTextField(): boolean {
+  const el = document.activeElement
+  if (!el) return false
+  const tag = el.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || !!el.closest('.cm-editor')
+}
+
 export function useVimReader({
   pdfContainerRef,
   notesOpen,
@@ -80,6 +87,10 @@ export function useVimReader({
         }
         return
       }
+
+      // Skip all navigation keys when focus is in any text field
+      // (search bar, command palette, etc.)
+      if (isInTextField()) return
 
       // PDF mode
       switch (e.key) {

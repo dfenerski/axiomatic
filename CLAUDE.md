@@ -13,7 +13,11 @@ src/components/NotesPanel.tsx    — CodeMirror 6 with vim, markdown, KaTeX math
 src/components/TabBar.tsx        — horizontal tab strip for open documents
 src/components/HighlightsPanel.tsx — highlights list pane (grouped by page)
 src/components/BookmarksPanel.tsx  — bookmarks list pane (highlights with color="bookmark")
+src/components/CommandPalette.tsx — Ctrl+P command palette (panel toggles, theme, zen mode)
+src/components/ReaderToolbar.tsx — reader toolbar (back, page counter, zoom, search, palette button)
 src/lib/thumbnail-queue.ts      — concurrency limiter (MAX_CONCURRENT=3)
+src/lib/palette.ts              — module-level toggle callback for command palette
+src/hooks/useTheme.ts           — theme store with setTheme() export for direct setting
 src-tauri/src/commands.rs        — general Tauri IPC commands (db, files, tags)
 src-tauri/src/pdf_commands.rs    — PDF-specific IPC commands (open, outline, links, text, search, clip)
 src-tauri/src/pdf_engine.rs      — PDFium render thread (mpsc recv loop, LRU cache)
@@ -56,6 +60,20 @@ Routes: `/` OverviewPage, `/read/:slug` ReaderPage. Layout wraps both with custo
 **OverviewPage re-renders** — `BookTile` is `memo`'d with a custom comparator that checks `progress.currentPage` and `progress.totalPages` by value (not reference), because the localStorage store creates fresh objects on every read. `handleTotalPages` uses a ref to avoid depending on the `progress` object.
 
 **useBatchedRender** — progressively mounts BookTiles in batches of 20 via requestAnimationFrame, preventing initial load from blocking the main thread.
+
+## Command palette & zen mode
+
+**Command palette** (`Ctrl+P` or toolbar button) — floating overlay with fuzzy filter. Available on both overview and reader pages. Commands:
+- Always: theme switching (OS / light / dark)
+- Reader only: toggle outline, notes, bookmarks, highlights, zen mode
+
+Panel toggle commands dispatch `CustomEvent` on `window` (e.g. `axiomatic:toggle-outline`), listened to by `ReaderPage`. The palette button uses a module-level callback (`src/lib/palette.ts`) to avoid circular imports between `router.tsx` and page/component modules.
+
+**Zen mode** — hides toolbar, tabs, outline, bookmarks, and highlights panels. Notes remain openable (Ctrl+L or command palette). ESC exits zen mode.
+
+**Toolbar layout** (reader): Left (back, page counter, zoom) | Center (title) | Right (search, palette button).
+
+**Keyboard safety** — `useVimReader` and `ReaderPage` keyboard handlers skip all non-modifier keys when `document.activeElement` is an `<input>` or `<textarea>`, preventing vim navigation from interfering with the command palette, search bar, or any future text fields.
 
 ## Conventions
 

@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ThemeToggle } from './ThemeToggle'
+import { togglePalette } from '../lib/palette'
 
 const MIN_ZOOM = 0.25
 const MAX_ZOOM = 5
@@ -12,14 +12,6 @@ interface Props {
   totalPages: number
   zoom: number
   onZoomChange: (zoom: number) => void
-  outlineOpen: boolean
-  onToggleOutline: () => void
-  notesOpen: boolean
-  onToggleNotes: () => void
-  highlightsOpen: boolean
-  onToggleHighlights: () => void
-  bookmarksOpen: boolean
-  onToggleBookmarks: () => void
   searchOpen: boolean
   onToggleSearch: () => void
   searchQuery: string
@@ -38,14 +30,6 @@ export function ReaderToolbar({
   totalPages,
   zoom,
   onZoomChange,
-  outlineOpen,
-  onToggleOutline,
-  notesOpen,
-  onToggleNotes,
-  highlightsOpen,
-  onToggleHighlights,
-  bookmarksOpen,
-  onToggleBookmarks,
   searchOpen,
   onToggleSearch,
   searchQuery,
@@ -73,7 +57,7 @@ export function ReaderToolbar({
   return (
     <div className="shrink-0">
       <div className="flex h-10 shrink-0 items-center border-b border-[#eee8d5] bg-[#fdf6e3] px-3 dark:border-[#073642] dark:bg-[#002b36]">
-        {/* Left: back, page counter, title */}
+        {/* Left: back, page counter, zoom */}
         <div className="flex min-w-0 flex-1 items-center gap-1">
           <Link
             to="/"
@@ -88,37 +72,38 @@ export function ReaderToolbar({
           <span className="shrink-0 whitespace-nowrap text-sm tabular-nums text-[#657b83] dark:text-[#93a1a1]">
             {currentPage} / {totalPages}
           </span>
-          <span className="ml-1 min-w-0 max-w-[28rem] truncate text-xs text-[#93a1a1] dark:text-[#657b83]">
-            {title}
-          </span>
+          <div className="mx-0.5 h-4 w-px bg-[#eee8d5] dark:bg-[#073642]" />
+          <div className="flex shrink-0 items-center gap-0.5">
+            <button
+              onClick={() => canZoomOut && onZoomChange(Math.round(Math.max(MIN_ZOOM, zoom / ZOOM_FACTOR) * 100) / 100)}
+              disabled={!canZoomOut}
+              className="rounded px-1.5 py-0.5 text-sm text-[#586e75] hover:bg-[#eee8d5] disabled:opacity-30 dark:text-[#93a1a1] dark:hover:bg-[#073642]"
+              aria-label="Zoom out"
+            >
+              −
+            </button>
+            <button
+              onClick={() => onZoomChange(1)}
+              className="min-w-[3.5rem] rounded px-1 py-0.5 text-center text-sm tabular-nums text-[#586e75] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
+              aria-label="Reset zoom"
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <button
+              onClick={() => canZoomIn && onZoomChange(Math.round(Math.min(MAX_ZOOM, zoom * ZOOM_FACTOR) * 100) / 100)}
+              disabled={!canZoomIn}
+              className="rounded px-1.5 py-0.5 text-sm text-[#586e75] hover:bg-[#eee8d5] disabled:opacity-30 dark:text-[#93a1a1] dark:hover:bg-[#073642]"
+              aria-label="Zoom in"
+            >
+              +
+            </button>
+          </div>
         </div>
-        {/* Center: zoom controls */}
-        <div className="flex shrink-0 items-center gap-0.5">
-          <button
-            onClick={() => canZoomOut && onZoomChange(Math.round(Math.max(MIN_ZOOM, zoom / ZOOM_FACTOR) * 100) / 100)}
-            disabled={!canZoomOut}
-            className="rounded px-1.5 py-0.5 text-sm text-[#586e75] hover:bg-[#eee8d5] disabled:opacity-30 dark:text-[#93a1a1] dark:hover:bg-[#073642]"
-            aria-label="Zoom out"
-          >
-            −
-          </button>
-          <button
-            onClick={() => onZoomChange(1)}
-            className="min-w-[3.5rem] rounded px-1 py-0.5 text-center text-sm tabular-nums text-[#586e75] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
-            aria-label="Reset zoom"
-          >
-            {Math.round(zoom * 100)}%
-          </button>
-          <button
-            onClick={() => canZoomIn && onZoomChange(Math.round(Math.min(MAX_ZOOM, zoom * ZOOM_FACTOR) * 100) / 100)}
-            disabled={!canZoomIn}
-            className="rounded px-1.5 py-0.5 text-sm text-[#586e75] hover:bg-[#eee8d5] disabled:opacity-30 dark:text-[#93a1a1] dark:hover:bg-[#073642]"
-            aria-label="Zoom in"
-          >
-            +
-          </button>
-        </div>
-        {/* Right: search + actions */}
+        {/* Center: title */}
+        <span className="min-w-0 max-w-[28rem] shrink truncate text-center text-xs text-[#93a1a1] dark:text-[#657b83]">
+          {title}
+        </span>
+        {/* Right: search, actions */}
         <div className="flex min-w-0 flex-1 items-center justify-end gap-1">
           {savedProgressPage != null && (
             <button
@@ -198,51 +183,14 @@ export function ReaderToolbar({
             </svg>
           </button>
           <button
-            onClick={onToggleOutline}
-            className={outlineOpen ? iconBtnActiveClass : iconBtnClass}
-            aria-label="Toggle outline"
+            onClick={togglePalette}
+            className={iconBtnClass}
+            aria-label="Command palette"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="8" y1="6" x2="21" y2="6" />
-              <line x1="8" y1="12" x2="21" y2="12" />
-              <line x1="8" y1="18" x2="21" y2="18" />
-              <line x1="3" y1="6" x2="3.01" y2="6" />
-              <line x1="3" y1="12" x2="3.01" y2="12" />
-              <line x1="3" y1="18" x2="3.01" y2="18" />
+              <path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z" />
             </svg>
           </button>
-          <button
-            onClick={onToggleNotes}
-            className={notesOpen ? iconBtnActiveClass : iconBtnClass}
-            aria-label="Toggle notes"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-            </svg>
-          </button>
-          <button
-            onClick={onToggleBookmarks}
-            className={bookmarksOpen ? iconBtnActiveClass : iconBtnClass}
-            aria-label="Toggle bookmarks"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-            </svg>
-          </button>
-          <button
-            onClick={onToggleHighlights}
-            className={highlightsOpen ? iconBtnActiveClass : iconBtnClass}
-            aria-label="Toggle highlights"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5" />
-              <path d="M2 12l10 5 10-5" />
-            </svg>
-          </button>
-          <div className="mx-1 h-4 w-px bg-[#eee8d5] dark:bg-[#073642]" />
-          <ThemeToggle />
         </div>
       </div>
     </div>
