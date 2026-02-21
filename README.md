@@ -41,9 +41,12 @@ npm run dev
 
 - [ ] auto-snipper + review section with multiple modes
 - [ ] web / ios / android / windows build targets
+- [ ] ddd adoption
+- [ ] language-building capabilities (ADI)
+- [ ] projects concept, see "ability to create..."
 
 - [ ] live-watch for OS changes
-- [ ] ability to create a parallel hierarchical structure to organize the files
+- [ ] ability to create a parallel hierarchical structure to organize the files, see "projects concept"
 - [ ] export
     - [ ] notes: copy, export, print
     - [ ] valut: export/import
