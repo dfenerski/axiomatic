@@ -1,10 +1,12 @@
 mod commands;
 mod db;
+mod highlight_commands;
 mod models;
 mod pdf_commands;
 mod pdf_engine;
 mod pdf_models;
 mod pdf_protocol;
+mod snip_commands;
 
 use commands::{DbState, PendingFile};
 use pdf_commands::PdfState;
@@ -189,10 +191,10 @@ pub fn run() {
             commands::get_platform,
             commands::open_file,
             commands::get_pending_file,
-            commands::list_highlights,
-            commands::create_highlight,
-            commands::delete_highlight,
-            commands::delete_highlight_group,
+            highlight_commands::list_highlights,
+            highlight_commands::create_highlight,
+            highlight_commands::delete_highlight,
+            highlight_commands::delete_highlight_group,
             pdf_commands::open_document,
             pdf_commands::close_document,
             pdf_commands::get_outline,
@@ -202,6 +204,9 @@ pub fn run() {
             pdf_commands::clip_pdf,
             pdf_commands::get_page_text_layer,
             pdf_commands::prerender_pages,
+            snip_commands::list_snips,
+            snip_commands::create_snip,
+            snip_commands::delete_snip,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

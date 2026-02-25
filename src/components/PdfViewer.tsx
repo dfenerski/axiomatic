@@ -5,6 +5,7 @@ import { usePageLinks, type LinkAnnotation } from '../hooks/usePageLinks'
 import { usePageTextLayer, type PageTextLayer } from '../hooks/usePageTextLayer'
 import type { Highlight } from '../hooks/useHighlights'
 import { TextLayer } from './TextLayer'
+import { SnipOverlay } from './SnipOverlay'
 import { invoke } from '@tauri-apps/api/core'
 import { save } from '@tauri-apps/plugin-dialog'
 
@@ -44,6 +45,8 @@ interface Props {
     text: string,
     groupId: string,
   ) => Promise<unknown>
+  snipMode?: boolean
+  onSnipRegion?: (page: number, x: number, y: number, w: number, h: number) => void
 }
 
 interface ContextMenuState {
@@ -71,6 +74,7 @@ function generateId(): string {
   return crypto.randomUUID()
 }
 
+
 const PdfViewerInner = React.forwardRef<PdfViewerHandle, Props>(function PdfViewerInner({
   docInfo,
   fullPath,
@@ -82,6 +86,8 @@ const PdfViewerInner = React.forwardRef<PdfViewerHandle, Props>(function PdfView
   onDeleteHighlight,
   onDeleteHighlightGroup,
   onCreateHighlight,
+  snipMode,
+  onSnipRegion,
 }, ref) {
   const numPages = docInfo.page_count
   const containerRef = useRef<HTMLDivElement>(null)
@@ -657,11 +663,14 @@ const PdfViewerInner = React.forwardRef<PdfViewerHandle, Props>(function PdfView
                     onClick={() => handleLinkClick(link)}
                   />
                 ))}
+              {snipMode && onSnipRegion && (
+                <SnipOverlay pageNum={pageNum} onRegion={onSnipRegion} />
+              )}
             </div>
           )
         },
       ),
-    [visibleRange, layoutWidth, pageOffsets, encodedPath, dpr, pageLinks, pageTextLayers, highlightsForPage, handleContextMenu, handleLinkClick, clipStartPage],
+    [visibleRange, layoutWidth, pageOffsets, encodedPath, dpr, pageLinks, pageTextLayers, highlightsForPage, handleContextMenu, handleLinkClick, clipStartPage, snipMode, onSnipRegion],
   )
 
   return (

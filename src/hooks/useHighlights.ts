@@ -26,7 +26,7 @@ export function useHighlights(slug: string | undefined) {
       .then((h) => {
         if (!cancelled) setHighlights(h)
       })
-      .catch(() => {})
+      .catch((err) => console.error('list_highlights failed:', err))
     return () => {
       cancelled = true
     }

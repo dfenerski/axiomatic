@@ -76,5 +76,22 @@ pub fn init_db(db_path: &Path) -> Result<Connection> {
     conn.execute_batch("ALTER TABLE highlights ADD COLUMN group_id TEXT NOT NULL DEFAULT ''").ok();
     conn.execute_batch("CREATE INDEX IF NOT EXISTS idx_highlights_group_id ON highlights(group_id)").ok();
 
+    // Migration: create snips table
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS snips (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            slug TEXT NOT NULL,
+            full_path TEXT NOT NULL DEFAULT '',
+            page INTEGER NOT NULL,
+            label TEXT NOT NULL,
+            x REAL NOT NULL,
+            y REAL NOT NULL,
+            width REAL NOT NULL,
+            height REAL NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_snips_slug ON snips(slug);",
+    ).ok();
+
     Ok(conn)
 }

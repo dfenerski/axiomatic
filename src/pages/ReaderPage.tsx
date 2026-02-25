@@ -8,7 +8,8 @@ import { useVimReader } from '../hooks/useVimReader'
 import { useSearch } from '../hooks/useSearch'
 import { useDocument } from '../hooks/useDocument'
 import { useHighlights } from '../hooks/useHighlights'
-import { useTabs } from '../hooks/useTabs'
+import { useSnips } from '../hooks/useSnips'
+import { useTabNavigation } from '../hooks/useTabs'
 import { PdfViewer, type PdfViewerHandle } from '../components/PdfViewer'
 import { TabBar } from '../components/TabBar'
 import { ReaderToolbar } from '../components/ReaderToolbar'
@@ -16,6 +17,8 @@ import { NotesPanel } from '../components/NotesPanel'
 import { OutlineSidebar } from '../components/OutlineSidebar'
 import { HighlightsPanel } from '../components/HighlightsPanel'
 import { BookmarksPanel } from '../components/BookmarksPanel'
+import { SnipBanner } from '../components/SnipBanner'
+import { setReaderSnipMode, setReaderHasSnips } from '../lib/readerState'
 
 export function ReaderPage() {
   const { slug } = useParams<{ slug: string }>()
@@ -28,34 +31,28 @@ export function ReaderPage() {
 
   const { docInfo, loading: docLoading, error: docError } = useDocument(book?.full_path)
   const { colorHighlights, bookmarkHighlights, highlightsForPage, createHighlight, deleteHighlight, deleteHighlightGroup } = useHighlights(slug)
-  const { tabs, openTab, closeTab, reopenTab, setActiveTab } = useTabs()
+  const { snips, addSnip } = useSnips(slug)
+  const { tabs, openTab, reopenTab, tabsRef, selectTab, closeTabAndNavigate, closeOtherTabsAndNavigate } = useTabNavigation(slug)
+
+  const [snipMode, setSnipMode] = useState(false)
+  const [snipToast, setSnipToast] = useState<string | null>(null)
+  const [pendingSnip, setPendingSnip] = useState<{ page: number; x: number; y: number; w: number; h: number } | null>(null)
+  const sessionSnipCount = useRef(0)
+  const snipModeRef = useRef(false)
+
+  useEffect(() => { setReaderHasSnips(snips.length > 0) }, [snips])
+  useEffect(() => { setReaderSnipMode(snipMode) }, [snipMode])
+  useEffect(() => {
+    return () => { setReaderSnipMode(false); setReaderHasSnips(false) }
+  }, [])
 
   // Register this book as a tab
   useEffect(() => {
     if (book && slug) {
-      openTab({ slug, title: book.title, fullPath: book.full_path })
+      openTab({ slug, title: book.title, fullPath: book.full_path, route: `/read/${slug}` })
     }
   }, [book, slug, openTab])
 
-  const handleTabSelect = useCallback(
-    (tabSlug: string) => {
-      setActiveTab(tabSlug)
-      navigate(`/read/${tabSlug}`)
-    },
-    [navigate, setActiveTab],
-  )
-
-  const handleTabClose = useCallback(
-    (tabSlug: string) => {
-      const nextSlug = closeTab(tabSlug)
-      if (nextSlug && nextSlug !== slug) {
-        navigate(`/read/${nextSlug}`)
-      } else if (!nextSlug) {
-        navigate('/')
-      }
-    },
-    [closeTab, navigate, slug],
-  )
 
   // Capture initial page once per document — don't re-evaluate when progress
   // updates during scroll, as that would bust PdfViewer's React.memo every 300ms.
@@ -84,6 +81,7 @@ export function ReaderPage() {
   const editorRef = useRef<EditorView | null>(null)
 
   const zoomDisplayTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const snipToastTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const handleBack = useCallback(() => navigate('/'), [navigate])
   const handleZoomChange = useCallback((newZoom: number) => {
     zoomRef.current = newZoom
@@ -93,6 +91,40 @@ export function ReaderPage() {
     zoomDisplayTimerRef.current = setTimeout(() => setZoom(newZoom), 150)
   }, [])
   const { activePane } = useVimReader({ pdfContainerRef, notesOpen, setNotesOpen, editorRef, zoomRef, onZoomChange: handleZoomChange, onBack: handleBack })
+
+  // Stable snip mode callbacks (only use refs + state setters → safe with [] deps)
+  const exitSnipMode = useCallback(() => {
+    const n = sessionSnipCount.current
+    snipModeRef.current = false
+    setSnipMode(false)
+    setPendingSnip(null)
+    const msg = n > 0 ? `${n} snip${n === 1 ? '' : 's'} saved` : 'Snip mode off'
+    setSnipToast(msg)
+    clearTimeout(snipToastTimerRef.current)
+    snipToastTimerRef.current = setTimeout(() => setSnipToast(null), 2000)
+  }, [])
+
+  const enterSnipMode = useCallback(() => {
+    sessionSnipCount.current = 0
+    snipModeRef.current = true
+    setSnipMode(true)
+  }, [])
+
+  const handleSnipRegion = useCallback((page: number, x: number, y: number, w: number, h: number) => {
+    setPendingSnip({ page, x, y, w, h })
+  }, [])
+
+  const handleSnipSave = useCallback(async (label: string) => {
+    if (!pendingSnip || !book) return
+    const snip = await addSnip(book.full_path, pendingSnip.page, label, pendingSnip.x, pendingSnip.y, pendingSnip.w, pendingSnip.h)
+    if (snip) sessionSnipCount.current += 1
+    setPendingSnip(null)
+  }, [pendingSnip, book, addSnip])
+
+  const handleSnipCancel = useCallback(() => {
+    setPendingSnip(null)
+  }, [])
+
   const search = useSearch(book?.full_path)
 
   const currentPageRef = useRef(currentPage)
@@ -135,24 +167,26 @@ export function ReaderPage() {
         setOutlineOpen((o) => !o)
       } else if (mod && e.key === 'w') {
         e.preventDefault()
-        if (slug) handleTabClose(slug)
+        if (slug) closeTabAndNavigate(slug)
       } else if (mod && e.shiftKey && (e.key === 'T' || e.key === 't')) {
         e.preventDefault()
         const reopened = reopenTab()
-        if (reopened) navigate(`/read/${reopened}`)
+        if (reopened) navigate(reopened.route)
       } else if (e.shiftKey && e.altKey && (e.key === 'H' || e.key === 'h')) {
         e.preventDefault()
-        const idx = tabs.findIndex((t) => t.slug === slug)
-        if (idx > 0) handleTabSelect(tabs[idx - 1].slug)
+        const currentTabs = tabsRef.current
+        const idx = currentTabs.findIndex((t) => t.slug === slug)
+        if (idx > 0) selectTab(currentTabs[idx - 1].slug)
       } else if (e.shiftKey && e.altKey && (e.key === 'L' || e.key === 'l')) {
         e.preventDefault()
-        const idx = tabs.findIndex((t) => t.slug === slug)
-        if (idx >= 0 && idx < tabs.length - 1) handleTabSelect(tabs[idx + 1].slug)
+        const currentTabs = tabsRef.current
+        const idx = currentTabs.findIndex((t) => t.slug === slug)
+        if (idx >= 0 && idx < currentTabs.length - 1) selectTab(currentTabs[idx + 1].slug)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [slug, tabs, handleTabClose, handleTabSelect, reopenTab, navigate])
+  }, [slug, closeTabAndNavigate, selectTab, reopenTab, navigate])
 
   // Listen for command palette custom events
   useEffect(() => {
@@ -162,13 +196,15 @@ export function ReaderPage() {
       'axiomatic:toggle-bookmarks': () => setBookmarksOpen((o) => !o),
       'axiomatic:toggle-highlights': () => setHighlightsOpen((o) => !o),
       'axiomatic:toggle-zen': () => setZenMode((z) => !z),
+      'axiomatic:toggle-snip': () => { if (snipModeRef.current) exitSnipMode(); else enterSnipMode() },
+      'axiomatic:exit-snip': exitSnipMode,
     }
-    const listeners = Object.entries(handlers).map(([event, handler]) => {
+    const cleanups = Object.entries(handlers).map(([event, handler]) => {
       window.addEventListener(event, handler)
       return () => window.removeEventListener(event, handler)
     })
-    return () => listeners.forEach((unsub) => unsub())
-  }, [])
+    return () => cleanups.forEach((fn) => fn())
+  }, [exitSnipMode, enterSnipMode])
 
   // ESC exits zen mode
   useEffect(() => {
@@ -383,8 +419,9 @@ export function ReaderPage() {
         <TabBar
           tabs={tabs}
           activeSlug={slug ?? null}
-          onSelect={handleTabSelect}
-          onClose={handleTabClose}
+          onSelect={selectTab}
+          onClose={closeTabAndNavigate}
+          onCloseOthers={closeOtherTabsAndNavigate}
         />
       )}
       <div className="flex min-h-0 flex-1">
@@ -407,7 +444,16 @@ export function ReaderPage() {
             />
           </>
         )}
-        <div className={`flex min-w-0 flex-1 flex-col ${activePane === 'pdf' ? 'border-t-2 border-[#268bd2]' : 'border-t-2 border-[#eee8d5] dark:border-[#073642]'}`}>
+        <div
+          className={`relative flex min-w-0 flex-1 flex-col ${activePane === 'pdf' ? 'border-t-2 border-[#268bd2]' : 'border-t-2 border-[#eee8d5] dark:border-[#073642]'}`}
+          style={snipMode ? { boxShadow: 'inset 0 0 24px rgba(38, 139, 210, 0.15)' } : undefined}
+        >
+          {pendingSnip && (
+            <SnipBanner
+              onSave={handleSnipSave}
+              onCancel={handleSnipCancel}
+            />
+          )}
           <PdfViewer
             key={book.full_path}
             ref={pdfViewerRef}
@@ -421,7 +467,16 @@ export function ReaderPage() {
             onDeleteHighlight={deleteHighlight}
             onDeleteHighlightGroup={deleteHighlightGroup}
             onCreateHighlight={createHighlight}
+            snipMode={snipMode && !pendingSnip}
+            onSnipRegion={handleSnipRegion}
           />
+          {snipToast && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-6 z-40 flex justify-center">
+              <div className="rounded-lg bg-[#073642] px-4 py-2 text-sm text-[#93a1a1] shadow-lg dark:bg-[#eee8d5] dark:text-[#586e75]">
+                {snipToast}
+              </div>
+            </div>
+          )}
         </div>
         {notesOpen && slug && (
           <>

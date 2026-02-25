@@ -1,10 +1,12 @@
-import { useCallback, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { createLocalStorageStore } from '../lib/createStore'
 
 export interface OpenTab {
   slug: string
   title: string
   fullPath: string
+  route: string
 }
 
 interface TabsState {
@@ -17,7 +19,15 @@ const STORAGE_KEY = 'axiomatic:tabs'
 function loadTabs(): TabsState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as TabsState) : { tabs: [], activeSlug: null }
+    if (!raw) return { tabs: [], activeSlug: null }
+    const state = JSON.parse(raw) as TabsState
+    // Migrate tabs persisted without the route field
+    for (const tab of state.tabs) {
+      if (!tab.route) {
+        tab.route = `/read/${tab.slug}`
+      }
+    }
+    return state
   } catch {
     return { tabs: [], activeSlug: null }
   }
@@ -70,7 +80,7 @@ export function useTabs() {
     return current.activeSlug
   }, [])
 
-  const reopenTab = useCallback((): string | null => {
+  const reopenTab = useCallback((): OpenTab | null => {
     const tab = closedTabsStack.pop()
     if (!tab) return null
     const current = loadTabs()
@@ -80,7 +90,18 @@ export function useTabs() {
     current.activeSlug = tab.slug
     saveTabs(current)
     store.emitChange()
-    return tab.slug
+    return tab
+  }, [])
+
+  const closeOtherTabs = useCallback((keepSlug: string): void => {
+    const current = loadTabs()
+    const kept = current.tabs.filter((t) => t.slug === keepSlug)
+    const closed = current.tabs.filter((t) => t.slug !== keepSlug)
+    for (const tab of closed) closedTabsStack.push(tab)
+    current.tabs = kept
+    current.activeSlug = keepSlug
+    saveTabs(current)
+    store.emitChange()
   }, [])
 
   const setActiveTab = useCallback((slug: string) => {
@@ -97,7 +118,46 @@ export function useTabs() {
     activeSlug: state.activeSlug,
     openTab,
     closeTab,
+    closeOtherTabs,
     reopenTab,
     setActiveTab,
   }
+}
+
+/**
+ * Wraps useTabs with route-aware navigation helpers.
+ * Eliminates the need for each page to maintain its own tabsRef
+ * and duplicate handleTabSelect / handleTabClose logic.
+ */
+export function useTabNavigation(currentSlug: string | undefined) {
+  const tabState = useTabs()
+  const navigate = useNavigate()
+  const tabsRef = useRef(tabState.tabs)
+  useEffect(() => { tabsRef.current = tabState.tabs }, [tabState.tabs])
+
+  const selectTab = useCallback((slug: string) => {
+    tabState.setActiveTab(slug)
+    const tab = tabsRef.current.find((t) => t.slug === slug)
+    navigate(tab?.route || `/read/${slug}`)
+  }, [navigate, tabState.setActiveTab])
+
+  const closeTabAndNavigate = useCallback((slug: string) => {
+    const nextSlug = tabState.closeTab(slug)
+    if (nextSlug && nextSlug !== currentSlug) {
+      const nextTab = tabsRef.current.find((t) => t.slug === nextSlug)
+      navigate(nextTab?.route || `/read/${nextSlug}`)
+    } else if (!nextSlug) {
+      navigate('/')
+    }
+  }, [tabState.closeTab, navigate, currentSlug])
+
+  const closeOtherTabsAndNavigate = useCallback((keepSlug: string) => {
+    tabState.closeOtherTabs(keepSlug)
+    if (keepSlug !== currentSlug) {
+      const tab = tabsRef.current.find((t) => t.slug === keepSlug)
+      navigate(tab?.route || `/read/${keepSlug}`)
+    }
+  }, [tabState.closeOtherTabs, navigate, currentSlug])
+
+  return { ...tabState, tabsRef, selectTab, closeTabAndNavigate, closeOtherTabsAndNavigate }
 }

@@ -1,17 +1,20 @@
-import { createBrowserRouter, Outlet, useLocation } from 'react-router-dom'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createBrowserRouter, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { OverviewPage } from './pages/OverviewPage'
 import { ReaderPage } from './pages/ReaderPage'
+import { LoopPage } from './pages/LoopPage'
 import { Titlebar } from './components/Titlebar'
 import { CommandPalette, type Command } from './components/CommandPalette'
 import { useTheme, setTheme } from './hooks/useTheme'
 import { registerPaletteToggle } from './lib/palette'
+import { subscribeReaderState, getReaderStateSnapshot } from './lib/readerState'
 
 function Layout() {
   const [isLinux, setIsLinux] = useState<boolean | null>(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const location = useLocation()
+  const navigate = useNavigate()
   const { theme } = useTheme()
   const isReader = location.pathname.startsWith('/read/')
 
@@ -35,7 +38,13 @@ function Layout() {
     }
   }, [])
 
+  const readerState = useSyncExternalStore(subscribeReaderState, getReaderStateSnapshot)
+
   const closePalette = useCallback(() => setPaletteOpen(false), [])
+
+  const snipping = isReader && readerState.snipMode
+  const hasSnips = isReader && readerState.hasSnips
+  const readerSlug = isReader ? location.pathname.replace('/read/', '') : null
 
   const commands = useMemo(() => {
     const cmds: Command[] = [
@@ -81,10 +90,39 @@ function Layout() {
           action: () => window.dispatchEvent(new CustomEvent('axiomatic:toggle-zen')),
         },
       )
+
+      if (snipping) {
+        cmds.push({
+          id: 'stop-snipping',
+          label: 'Stop snipping',
+          action: () => window.dispatchEvent(new CustomEvent('axiomatic:exit-snip')),
+        })
+      } else {
+        cmds.push({
+          id: 'snip',
+          label: 'Snip',
+          action: () => window.dispatchEvent(new CustomEvent('axiomatic:toggle-snip')),
+        })
+      }
+
+      if (hasSnips && readerSlug) {
+        cmds.push(
+          {
+            id: 'loop-sorted',
+            label: 'Loop (sorted)',
+            action: () => navigate(`/loop/${readerSlug}?mode=sorted`),
+          },
+          {
+            id: 'loop-shuffled',
+            label: 'Loop (shuffled)',
+            action: () => navigate(`/loop/${readerSlug}?mode=shuffled`),
+          },
+        )
+      }
     }
 
     return cmds
-  }, [isReader, theme])
+  }, [isReader, theme, snipping, hasSnips, readerSlug, navigate])
 
   // Avoid flash — render nothing until platform is known
   if (isLinux === null) return null
@@ -123,6 +161,7 @@ export const router = createBrowserRouter([
     children: [
       { path: '/', element: <OverviewPage /> },
       { path: '/read/:slug', element: <ReaderPage /> },
+      { path: '/loop/:slug', element: <LoopPage /> },
     ],
   },
 ])
