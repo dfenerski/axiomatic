@@ -7,6 +7,7 @@ import { useTextbooks } from '../hooks/useTextbooks'
 import { useAllSnips } from '../hooks/useSnips'
 import type { SnipWithDir } from '../hooks/useSnips'
 import { togglePalette } from '../lib/palette'
+import { LoopCarousel } from '../components/LoopCarousel'
 
 interface TagMenuState {
   x: number
@@ -144,7 +145,9 @@ export function SnipsPage() {
 
   const [search, setSearch] = useState('')
   const [dirFilter, setDirFilter] = useState<string>('all')
-  const [tagFilter, setTagFilter] = useState<string>('all')
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [tagDropdownOpen, setTagDropdownOpen] = useState(false)
+  const [loopOpen, setLoopOpen] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const [tagMenu, setTagMenu] = useState<TagMenuState | null>(null)
   const [tagInput, setTagInput] = useState('')
@@ -152,6 +155,7 @@ export function SnipsPage() {
 
   const searchRef = useRef<HTMLInputElement>(null)
   const tableRef = useRef<HTMLDivElement>(null)
+  const tagDropdownRef = useRef<HTMLDivElement>(null)
 
   const loading = booksLoading || snipsLoading
 
@@ -198,14 +202,15 @@ export function SnipsPage() {
   const filteredSnips = useMemo(() => {
     let result = snips
 
-    // Directory filter
+    // Directory filter (single-select, intersection with tag filter)
     if (dirFilter !== 'all') {
       result = result.filter((s) => s.dirPath === dirFilter)
     }
 
-    // Tag filter
-    if (tagFilter !== 'all') {
-      result = result.filter((s) => s.tags.includes(tagFilter))
+    // Tag filter (multi-select, union: snip matches if it has ANY selected tag)
+    if (selectedTags.length > 0) {
+      const tagSet = new Set(selectedTags)
+      result = result.filter((s) => s.tags.some((t) => tagSet.has(t)))
     }
 
     // Search filter (case-insensitive substring on label)
@@ -216,7 +221,7 @@ export function SnipsPage() {
 
     // Sort by created_at descending (newest first)
     return [...result].sort((a, b) => b.created_at.localeCompare(a.created_at))
-  }, [snips, dirFilter, tagFilter, search])
+  }, [snips, dirFilter, selectedTags, search])
 
   // Clamp selectedIndex when filtered rows change
   useEffect(() => {
@@ -235,14 +240,17 @@ export function SnipsPage() {
     [navigate],
   )
 
-  // Vim j/k navigation
+  // Vim j/k navigation (disabled when loop overlay is open — LoopCarousel
+  // handles its own keyboard events)
   useEffect(() => {
+    if (loopOpen) return
+
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
 
       const count = filteredSnips.length
-      if (count === 0) return
+      if (count === 0 && e.key !== 'Escape' && e.key !== '/') return
 
       switch (e.key) {
         case 'j':
@@ -285,7 +293,7 @@ export function SnipsPage() {
 
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [filteredSnips, selectedIndex, navigateToSnip, navigate])
+  }, [filteredSnips, selectedIndex, navigateToSnip, navigate, loopOpen])
 
   // Scroll selected row into view
   useEffect(() => {
@@ -307,6 +315,34 @@ export function SnipsPage() {
   const closeTagMenu = useCallback(() => {
     setTagMenu(null)
     setTagInput('')
+  }, [])
+
+  // Close tag dropdown on click outside
+  useEffect(() => {
+    if (!tagDropdownOpen) return
+    const handleClick = (e: MouseEvent) => {
+      if (tagDropdownRef.current && !tagDropdownRef.current.contains(e.target as Node)) {
+        setTagDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [tagDropdownOpen])
+
+  // Toggle a tag in the multi-select filter
+  const toggleTagFilter = useCallback((tag: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+    )
+  }, [])
+
+  // Cross-book XP increment for the loop overlay
+  const incrementXpForSnip = useCallback(async (dirPath: string, slug: string) => {
+    try {
+      await invoke<number>('increment_xp', { dirPath, slug })
+    } catch (err) {
+      console.error('increment_xp failed:', err)
+    }
   }, [])
 
   // Tag autocomplete suggestions
@@ -390,19 +426,55 @@ export function SnipsPage() {
           ))}
         </select>
 
-        {/* Tag filter */}
-        <select
-          value={tagFilter}
-          onChange={(e) => setTagFilter(e.target.value)}
-          className="h-7 rounded border border-[#93a1a1]/30 bg-[#fdf6e3] px-2 text-xs text-[#586e75] outline-none focus:border-[#268bd2] dark:border-[#073642] dark:bg-[#073642] dark:text-[#93a1a1] dark:focus:border-[#268bd2]"
+        {/* Tag filter (multi-select dropdown) */}
+        <div ref={tagDropdownRef} className="relative">
+          <button
+            onClick={() => setTagDropdownOpen((v) => !v)}
+            className="flex h-7 items-center gap-1 rounded border border-[#93a1a1]/30 bg-[#fdf6e3] px-2 text-xs text-[#586e75] outline-none hover:border-[#268bd2] dark:border-[#073642] dark:bg-[#073642] dark:text-[#93a1a1] dark:hover:border-[#268bd2]"
+          >
+            {selectedTags.length === 0
+              ? 'All tags'
+              : `${selectedTags.length} tag${selectedTags.length !== 1 ? 's' : ''}`}
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+          {tagDropdownOpen && uniqueTags.length > 0 && (
+            <div className="absolute left-0 top-8 z-30 max-h-48 min-w-[160px] overflow-y-auto rounded-md border border-[#eee8d5] bg-[#fdf6e3] py-1 shadow-lg dark:border-[#073642] dark:bg-[#073642]">
+              {selectedTags.length > 0 && (
+                <button
+                  onClick={() => setSelectedTags([])}
+                  className="block w-full px-3 py-1 text-left text-xs text-[#268bd2] hover:bg-[#eee8d5] dark:hover:bg-[#002b36]"
+                >
+                  Clear all
+                </button>
+              )}
+              {uniqueTags.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => toggleTagFilter(tag)}
+                  className="flex w-full items-center gap-2 px-3 py-1 text-left text-xs text-[#586e75] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#002b36]"
+                >
+                  <span className={`inline-block h-3 w-3 shrink-0 rounded-sm border ${
+                    selectedTags.includes(tag)
+                      ? 'border-[#268bd2] bg-[#268bd2]'
+                      : 'border-[#93a1a1]/50 bg-transparent'
+                  }`} />
+                  {tag}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Start loop button */}
+        <button
+          onClick={() => setLoopOpen(true)}
+          disabled={filteredSnips.length === 0}
+          className="h-7 shrink-0 rounded border border-[#268bd2]/50 bg-[#268bd2]/10 px-3 text-xs font-medium text-[#268bd2] transition-colors hover:bg-[#268bd2]/20 disabled:cursor-not-allowed disabled:opacity-40 dark:border-[#268bd2]/30 dark:bg-[#268bd2]/10 dark:hover:bg-[#268bd2]/20"
         >
-          <option value="all">All tags</option>
-          {uniqueTags.map((tag) => (
-            <option key={tag} value={tag}>
-              {tag}
-            </option>
-          ))}
-        </select>
+          Start loop
+        </button>
 
         <div className="flex-1" />
 
@@ -533,6 +605,20 @@ export function SnipsPage() {
           {filteredSnips.length !== snips.length && ` of ${snips.length} total`}
         </span>
       </div>
+
+      {/* Loop overlay — full-page LoopCarousel over the table */}
+      {loopOpen && (
+        <div className="absolute inset-0 z-40 flex flex-col bg-[#fdf6e3] dark:bg-[#002b36]">
+          <LoopCarousel
+            snips={filteredSnips}
+            xp={0}
+            onIncrementXp={async () => 0}
+            onIncrementXpForSnip={incrementXpForSnip}
+            onExit={() => setLoopOpen(false)}
+            shuffled={true}
+          />
+        </div>
+      )}
     </div>
   )
 }

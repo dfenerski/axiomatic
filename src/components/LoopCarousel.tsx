@@ -7,6 +7,10 @@ interface LoopCarouselProps {
   onIncrementXp: () => Promise<number>
   onExit: () => void
   shuffled: boolean
+  /** Optional per-snip XP increment for cross-book loops. When provided, this
+   *  is called instead of onIncrementXp so that XP is credited to the correct
+   *  directory + slug combination. */
+  onIncrementXpForSnip?: (dirPath: string, slug: string) => Promise<void>
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -54,6 +58,7 @@ export function LoopCarousel({
   onIncrementXp,
   onExit,
   shuffled,
+  onIncrementXpForSnip,
 }: LoopCarouselProps) {
   // Stabilize order: only compute once when snips first arrive (avoids
   // re-shuffling mid-session if the snips array reference changes).
@@ -77,16 +82,27 @@ export function LoopCarousel({
     setRevealed(true)
   }, [revealed])
 
-  const advance = useCallback(async () => {
-    const newXp = await onIncrementXp()
-    if (newXp != null) setDisplayXp(newXp)
-  }, [onIncrementXp])
+  const advance = useCallback(async (snip: Snip) => {
+    if (onIncrementXpForSnip) {
+      // Cross-book mode: increment XP for the specific snip's slug/dir.
+      // The snip object is actually a SnipWithDir at runtime when this
+      // callback is provided.
+      const withDir = snip as Snip & { dirPath?: string }
+      if (withDir.dirPath) {
+        await onIncrementXpForSnip(withDir.dirPath, snip.slug)
+      }
+    } else {
+      const newXp = await onIncrementXp()
+      if (newXp != null) setDisplayXp(newXp)
+    }
+  }, [onIncrementXp, onIncrementXpForSnip])
 
   const handleNext = useCallback(() => {
+    const currentSnip = orderedSnips[index]
     setIndex((i) => (i + 1) % orderedSnips.length)
     setRevealed(false)
-    advance()
-  }, [orderedSnips.length, advance])
+    if (currentSnip) advance(currentSnip)
+  }, [orderedSnips, index, advance])
 
   const handlePrev = useCallback(() => {
     setIndex((i) => (i - 1 + orderedSnips.length) % orderedSnips.length)
@@ -138,9 +154,11 @@ export function LoopCarousel({
         <span className="text-sm text-[#93a1a1] dark:text-[#586e75]">
           {index + 1} / {orderedSnips.length}
         </span>
-        <span className="text-sm font-medium text-[#b58900]">
-          {displayXp} XP
-        </span>
+        {!onIncrementXpForSnip && (
+          <span className="text-sm font-medium text-[#b58900]">
+            {displayXp} XP
+          </span>
+        )}
         <button
           onClick={onExit}
           className="text-sm text-[#93a1a1] hover:text-[#657b83] dark:text-[#586e75] dark:hover:text-[#93a1a1]"

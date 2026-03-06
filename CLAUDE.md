@@ -128,7 +128,7 @@ npx tsc --noEmit     # type-check
 
 # axiomatic-pdfium — DDD Dashboard
 
-> Cache iteration: 31
+> Cache iteration: 32
 
 ## Orchestrator Directive
 
@@ -137,7 +137,7 @@ Commands: /ddd-begin, /ddd-explore, /ddd-spec, /ddd-plan, /ddd-exec, /ddd-gate, 
 
 ## Phase & Iteration
 
-Phase: **exec** | Iteration: **31**
+Phase: **exec** | Iteration: **32**
 
 ## Active Traversals
 
@@ -187,15 +187,15 @@ None
 | task-005 | Move Snips to .axiomatic/ | done |
 | task-006 | Move SnipXP to .axiomatic/ | done |
 | task-007 | Slug migration | done |
-| task-008 | Snip tags backend and model update | **pending** |
-| task-009 | Snip table view page with search and navigation | **pending** (blocked by 008) |
-| task-010 | Snip filtering and cross-book loop overlay | **pending** (blocked by 009) |
-| task-011 | Pomodoro timer with presets and break notifications | **pending** |
-| task-012 | Pomodoro session logging and XP backend | **pending** |
-| task-013 | Study statistics on OverviewPage | **pending** (blocked by 012) |
-| task-014 | Rust unit tests for all mutating IPC commands | **pending** |
-| task-015 | Vitest infrastructure and frontend tests | **pending** |
-| task-016 | Playwright E2E infrastructure and happy-path tests | **pending** |
+| task-008 | Snip tags backend and model update | done |
+| task-009 | Snip table view page with search and navigation | done |
+| task-010 | Snip filtering and cross-book loop overlay | done |
+| task-011 | Pomodoro timer with presets and break notifications | done |
+| task-012 | Pomodoro session logging and XP backend | done |
+| task-013 | Study statistics on OverviewPage | done |
+| task-014 | Rust unit tests for all mutating IPC commands | done (44 tests) |
+| task-015 | Vitest infrastructure and frontend tests | done (52 tests) |
+| task-016 | Playwright E2E infrastructure and happy-path tests | done (22 tests) |
 
 ## Open Clarifications
 
@@ -214,3 +214,4 @@ All 10 sub-specs approved (111 ACs, 58 atoms). Plan: **approved** (iter 30, 9 ta
 - [iter 29] Cycle 2 plan decomposition: brownfield gap analysis, 9 tasks in 3-layer DAG
 - [iter 30] Approved plan: 9 tasks (task-008..016), 35 ACs covered, critical path 008→009→010
 - [iter 31] Gate passed: plan → exec (9 pending tasks, entering cycle 2 implementation)
+- [iter 32] Exec batch: all 9 cycle 2 tasks completed (008–016). 44 Rust tests, 52 Vitest tests, 22 Playwright E2E tests all passing. Cycle 2 complete.
