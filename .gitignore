@@ -23,6 +23,19 @@ dist-ssr
 *.sln
 *.sw?
 
+# DDD artifacts
+/concept/
+/planning/
+/gates/
+/ddd/
+/ddd.yaml
+/hooks/
+/incidents/
+/.bootstrap
+
+# Claude
+.claude/
+
 # Playwright
 /test-results/
 /playwright-report/

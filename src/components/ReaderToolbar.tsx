@@ -31,6 +31,7 @@ interface Props {
   hasSnips?: boolean
   onLoopSorted?: () => void
   onLoopShuffled?: () => void
+  learningTools?: boolean
 }
 
 export function ReaderToolbar({
@@ -57,6 +58,7 @@ export function ReaderToolbar({
   hasSnips,
   onLoopSorted,
   onLoopShuffled,
+  learningTools = true,
 }: Props) {
   const canZoomOut = zoom > MIN_ZOOM
   const canZoomIn = zoom < MAX_ZOOM
@@ -189,17 +191,7 @@ export function ReaderToolbar({
               </button>
             </div>
           )}
-          <button
-            onClick={onToggleSearch}
-            className={searchOpen ? iconBtnActiveClass : iconBtnClass}
-            aria-label="Toggle search"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-          </button>
-          {onToggleSnipMode && (
+          {learningTools && onToggleSnipMode && (
             <button
               onClick={onToggleSnipMode}
               className={snipMode ? 'shrink-0 rounded p-1.5 bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : iconBtnClass}
@@ -214,7 +206,7 @@ export function ReaderToolbar({
               </svg>
             </button>
           )}
-          {hasSnips && onLoopSorted && onLoopShuffled && (
+          {learningTools && hasSnips && onLoopSorted && onLoopShuffled && (
             <>
               <button
                 onClick={onLoopSorted}
@@ -243,7 +235,17 @@ export function ReaderToolbar({
               </button>
             </>
           )}
-          <PomodoroTimer zenMode={zenMode ?? false} activeSlug={activeSlug} activeDirPath={activeDirPath} />
+          {learningTools && <PomodoroTimer zenMode={zenMode ?? false} activeSlug={activeSlug} activeDirPath={activeDirPath} />}
+          <button
+            onClick={onToggleSearch}
+            className={searchOpen ? iconBtnActiveClass : iconBtnClass}
+            aria-label="Toggle search"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+          </button>
           <button
             onClick={togglePalette}
             className={iconBtnClass}

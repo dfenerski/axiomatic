@@ -102,10 +102,10 @@ function logSession(startedAt: string, endedAt: string, durationMinutes: number)
 function readConfig(): PomodoroConfig {
   try {
     const raw = localStorage.getItem('axiomatic:pomodoro-config')
-    if (!raw) return { preset: '25/5', workMinutes: 25, breakMinutes: 5, audioEnabled: true, longBreakMultiplier: 3, longBreakInterval: 4 }
+    if (!raw) return { preset: '45/10', workMinutes: 45, breakMinutes: 10, audioEnabled: true, longBreakMultiplier: 3, longBreakInterval: 4 }
     return JSON.parse(raw)
   } catch {
-    return { preset: '25/5', workMinutes: 25, breakMinutes: 5, audioEnabled: true, longBreakMultiplier: 3, longBreakInterval: 4 }
+    return { preset: '45/10', workMinutes: 45, breakMinutes: 10, audioEnabled: true, longBreakMultiplier: 3, longBreakInterval: 4 }
   }
 }
 
@@ -284,7 +284,7 @@ if (import.meta.hot) {
     _state = {
       running: false,
       phase: 'work',
-      secondsLeft: 25 * 60,
+      secondsLeft: 45 * 60,
       completedPomodoros: 0,
       showOverlay: false,
       isLongBreak: false,
@@ -317,6 +317,7 @@ export function PomodoroTimer({ zenMode, activeSlug, activeDirPath }: Props) {
   const [customWork, setCustomWork] = useState(String(config.workMinutes))
   const [customBreak, setCustomBreak] = useState(String(config.breakMinutes))
   const popoverRef = useRef<HTMLDivElement>(null)
+  const settingsBtnRef = useRef<HTMLButtonElement>(null)
 
   // Keep module-level book tracking in sync with props
   useEffect(() => {
@@ -339,9 +340,10 @@ export function PomodoroTimer({ zenMode, activeSlug, activeDirPath }: Props) {
   useEffect(() => {
     if (!popoverOpen) return
     const handleClick = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        setPopoverOpen(false)
-      }
+      const target = e.target as Node
+      if (popoverRef.current?.contains(target)) return
+      if (settingsBtnRef.current?.contains(target)) return
+      setPopoverOpen(false)
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
@@ -412,24 +414,25 @@ export function PomodoroTimer({ zenMode, activeSlug, activeDirPath }: Props) {
           )}
         </button>
         {/* Config button */}
-        <div className="relative" ref={popoverRef}>
+        <div className="relative">
           <button
+            ref={settingsBtnRef}
             onClick={() => setPopoverOpen((o) => !o)}
             className="shrink-0 rounded p-1 text-[#657b83] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
             aria-label="Timer settings"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+              <path d="M6 2h12M6 22h12M7 2v4l5 6-5 6v4M17 2v4l-5 6 5 6v4" />
             </svg>
           </button>
-          {popoverOpen && (
-            <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-[#eee8d5] bg-[#fdf6e3] p-3 shadow-lg dark:border-[#073642] dark:bg-[#002b36]">
+        </div>
+        {popoverOpen && createPortal(
+          <div ref={popoverRef} className="fixed z-50 w-64 rounded-lg border border-[#eee8d5] bg-[#fdf6e3] p-3 shadow-lg dark:border-[#073642] dark:bg-[#002b36]" style={(() => { const r = settingsBtnRef.current?.getBoundingClientRect(); return r ? { top: r.bottom + 4, right: window.innerWidth - r.right } : { top: 40, right: 8 } })()}>
               <div className="mb-2 text-xs font-medium uppercase tracking-wide text-[#93a1a1] dark:text-[#657b83]">
                 Duration
               </div>
               <div className="mb-3 flex gap-1">
-                {(['25/5', '50/10'] as PomodoroPreset[]).map((p) => (
+                {(['45/10', '60/10', '90/15'] as PomodoroPreset[]).map((p) => (
                   <button
                     key={p}
                     onClick={() => handlePresetChange(p)}
@@ -493,7 +496,7 @@ export function PomodoroTimer({ zenMode, activeSlug, activeDirPath }: Props) {
                   <span>Audio chime</span>
                   <button
                     onClick={handleToggleAudio}
-                    className={`relative h-5 w-9 rounded-full transition-colors ${
+                    className={`shrink-0 relative h-5 w-9 rounded-full transition-colors ${
                       config.audioEnabled
                         ? 'bg-[#268bd2]'
                         : 'bg-[#93a1a1]/30 dark:bg-[#586e75]/40'
@@ -528,9 +531,9 @@ export function PomodoroTimer({ zenMode, activeSlug, activeDirPath }: Props) {
                   </button>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
+            </div>,
+          document.body,
+        )}
       </div>
       {timer.showOverlay &&
         createPortal(

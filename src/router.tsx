@@ -1,4 +1,4 @@
-import { createBrowserRouter, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { createBrowserRouter, Outlet, useLocation } from 'react-router-dom'
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { OverviewPage } from './pages/OverviewPage'
@@ -8,16 +8,16 @@ import { SnipsPage } from './pages/SnipsPage'
 import { StatsPage } from './pages/StatsPage'
 import { Titlebar } from './components/Titlebar'
 import { Sidebar } from './components/Sidebar'
-import { CommandPalette, type Command } from './components/CommandPalette'
-import { useTheme, setTheme } from './hooks/useTheme'
+import { CommandPalette } from './components/CommandPalette'
+import { useTheme } from './hooks/useTheme'
 import { registerPaletteToggle } from './lib/palette'
 import { subscribeReaderState, getReaderStateSnapshot } from './lib/readerState'
+import { buildCommands } from './lib/commands'
 
 function Layout() {
   const [isLinux, setIsLinux] = useState<boolean | null>(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const location = useLocation()
-  const navigate = useNavigate()
   const { theme } = useTheme()
   const isReader = location.pathname.startsWith('/read/')
   const isLoop = location.pathname.startsWith('/loop/')
@@ -46,97 +46,12 @@ function Layout() {
 
   const closePalette = useCallback(() => setPaletteOpen(false), [])
 
-  const snipping = isReader && readerState.snipMode
-  const hasSnips = isReader && readerState.hasSnips
-  const readerSlug = isReader ? location.pathname.replace('/read/', '') : null
+  const commands = useMemo(() => buildCommands(isReader, theme), [isReader, theme])
 
-  const commands = useMemo(() => {
-    const cmds: Command[] = [
-      {
-        id: 'theme-system',
-        label: 'Use OS theme',
-        action: () => setTheme('system'),
-      },
-      {
-        id: 'theme-toggle',
-        label: theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode',
-        action: () => setTheme(theme === 'dark' ? 'light' : 'dark'),
-      },
-      {
-        id: 'snips-page',
-        label: 'Snips',
-        action: () => navigate('/snips'),
-      },
-      {
-        id: 'stats-page',
-        label: 'Stats',
-        action: () => navigate('/stats'),
-      },
-    ]
-
-    if (isReader) {
-      cmds.push(
-        {
-          id: 'toggle-outline',
-          label: 'Toggle outline',
-          shortcut: 'Ctrl+B',
-          action: () => window.dispatchEvent(new CustomEvent('axiomatic:toggle-outline')),
-        },
-        {
-          id: 'toggle-notes',
-          label: 'Toggle notes',
-          shortcut: 'Ctrl+L',
-          action: () => window.dispatchEvent(new CustomEvent('axiomatic:toggle-notes')),
-        },
-        {
-          id: 'toggle-bookmarks',
-          label: 'Toggle bookmarks',
-          action: () => window.dispatchEvent(new CustomEvent('axiomatic:toggle-bookmarks')),
-        },
-        {
-          id: 'toggle-highlights',
-          label: 'Toggle highlights',
-          action: () => window.dispatchEvent(new CustomEvent('axiomatic:toggle-highlights')),
-        },
-        {
-          id: 'toggle-zen',
-          label: 'Toggle zen mode',
-          action: () => window.dispatchEvent(new CustomEvent('axiomatic:toggle-zen')),
-        },
-      )
-
-      if (snipping) {
-        cmds.push({
-          id: 'stop-snipping',
-          label: 'Stop snipping',
-          action: () => window.dispatchEvent(new CustomEvent('axiomatic:exit-snip')),
-        })
-      } else {
-        cmds.push({
-          id: 'snip',
-          label: 'Snip',
-          action: () => window.dispatchEvent(new CustomEvent('axiomatic:toggle-snip')),
-        })
-      }
-
-      if (hasSnips && readerSlug) {
-        cmds.push(
-          {
-            id: 'loop-sorted',
-            label: 'Loop (sorted)',
-            action: () => navigate(`/loop/${readerSlug}?mode=sorted`),
-          },
-          {
-            id: 'loop-shuffled',
-            label: 'Loop (shuffled)',
-            action: () => navigate(`/loop/${readerSlug}?mode=shuffled`),
-          },
-        )
-      }
-    }
-
-    return cmds
-  }, [isReader, theme, snipping, hasSnips, readerSlug, navigate])
+  const [sidebarManualCollapsed, setSidebarManualCollapsed] = useState(true)
+  const sidebarCollapsed = isReader || isLoop || sidebarManualCollapsed
+  const sidebarZenMode = isReader && readerState.zenMode
+  const toggleSidebarCollapse = useCallback(() => setSidebarManualCollapsed((c) => !c), [])
 
   // Avoid flash — render nothing until platform is known
   if (isLinux === null) return null
@@ -145,15 +60,12 @@ function Layout() {
     <CommandPalette commands={commands} onClose={closePalette} />
   )
 
-  const sidebarCollapsed = isReader || isLoop
-  const sidebarZenMode = isReader && readerState.zenMode
-
   if (isLinux) {
     return (
       <div className="flex h-screen flex-col bg-[#fdf6e3] dark:bg-[#002b36]">
         {palette}
         <div className="flex min-h-0 flex-1">
-          <Sidebar collapsed={sidebarCollapsed} zenMode={sidebarZenMode} />
+          <Sidebar collapsed={sidebarCollapsed} zenMode={sidebarZenMode} onToggleCollapse={toggleSidebarCollapse} />
           <div className="flex min-h-0 flex-1 flex-col">
             <Outlet />
           </div>
@@ -168,7 +80,7 @@ function Layout() {
         <Titlebar />
         {palette}
         <div className="flex min-h-0 flex-1">
-          <Sidebar collapsed={sidebarCollapsed} zenMode={sidebarZenMode} />
+          <Sidebar collapsed={sidebarCollapsed} zenMode={sidebarZenMode} onToggleCollapse={toggleSidebarCollapse} />
           <div className="flex min-h-0 flex-1 flex-col">
             <Outlet />
           </div>

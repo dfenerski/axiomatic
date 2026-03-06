@@ -3,6 +3,7 @@ import {
   setReaderSnipMode,
   setReaderHasSnips,
   setReaderZenMode,
+  setReaderLearningTools,
   getReaderStateSnapshot,
   subscribeReaderState,
 } from '../readerState'
@@ -12,6 +13,7 @@ beforeEach(() => {
   setReaderSnipMode(false)
   setReaderHasSnips(false)
   setReaderZenMode(false)
+  setReaderLearningTools(false)
 })
 
 describe('readerState', () => {
@@ -48,5 +50,15 @@ describe('readerState', () => {
     expect(snap1).not.toBe(snap2)
     expect(snap2.zenMode).toBe(true)
     expect(snap2.snipMode).toBe(false)
+  })
+
+  it('learningTools defaults to false in snapshot', () => {
+    const snap = getReaderStateSnapshot()
+    expect(snap.learningTools).toBe(false)
+  })
+
+  it('setReaderLearningTools updates snapshot', () => {
+    setReaderLearningTools(true)
+    expect(getReaderStateSnapshot().learningTools).toBe(true)
   })
 })

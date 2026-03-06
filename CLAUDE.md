@@ -106,6 +106,7 @@ Panel toggle commands dispatch `CustomEvent` on `window` (e.g. `axiomatic:toggle
 - Vim keybindings everywhere: h/j/k/l in overview grid, j/k scroll in reader, full vim in notes editor
 - No component library — all UI is hand-written
 - PDFs rendered via `pdfium://` custom protocol (native PDFium, JPEG output)
+- **Test-before-modify rule**: Before changing any logic, verify it has test coverage. If not, extract into a testable unit and write tests FIRST. This applies to all logic — component wiring, command lists, state assembly — not just leaf components. Tests must assert desired behavior, not mirror current implementation.
 
 ## Commands
 

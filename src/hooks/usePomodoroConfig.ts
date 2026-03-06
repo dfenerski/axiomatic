@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { createLocalStorageStore } from '../lib/createStore'
 
-export type PomodoroPreset = '25/5' | '50/10' | 'custom'
+export type PomodoroPreset = '45/10' | '60/10' | '90/15' | 'custom'
 
 export interface PomodoroConfig {
   preset: PomodoroPreset
@@ -15,9 +15,9 @@ export interface PomodoroConfig {
 const STORAGE_KEY = 'axiomatic:pomodoro-config'
 
 const DEFAULT_CONFIG: PomodoroConfig = {
-  preset: '25/5',
-  workMinutes: 25,
-  breakMinutes: 5,
+  preset: '45/10',
+  workMinutes: 45,
+  breakMinutes: 10,
   audioEnabled: true,
   longBreakMultiplier: 3,
   longBreakInterval: 4,
@@ -50,10 +50,12 @@ export function savePomodoroConfig(config: PomodoroConfig): void {
 
 export function applyPreset(preset: PomodoroPreset, current: PomodoroConfig): PomodoroConfig {
   switch (preset) {
-    case '25/5':
-      return { ...current, preset, workMinutes: 25, breakMinutes: 5 }
-    case '50/10':
-      return { ...current, preset, workMinutes: 50, breakMinutes: 10 }
+    case '45/10':
+      return { ...current, preset, workMinutes: 45, breakMinutes: 10 }
+    case '60/10':
+      return { ...current, preset, workMinutes: 60, breakMinutes: 10 }
+    case '90/15':
+      return { ...current, preset, workMinutes: 90, breakMinutes: 15 }
     case 'custom':
       return { ...current, preset }
   }

@@ -92,4 +92,35 @@ describe('ReaderToolbar', () => {
     fireEvent.click(screen.getByLabelText('Loop sorted'))
     expect(onSorted).toHaveBeenCalledTimes(1)
   })
+
+  // learningTools=false hides snip, loop, and pomodoro
+  it('hides snip/loop/pomodoro when learningTools is false', () => {
+    renderToolbar({
+      learningTools: false,
+      onToggleSnipMode: vi.fn(),
+      snipMode: false,
+      hasSnips: true,
+      onLoopSorted: vi.fn(),
+      onLoopShuffled: vi.fn(),
+    })
+    expect(screen.queryByLabelText('Snip mode')).toBeNull()
+    expect(screen.queryByLabelText('Loop sorted')).toBeNull()
+    expect(screen.queryByLabelText('Loop shuffled')).toBeNull()
+    expect(screen.queryByTestId('pomodoro-timer')).toBeNull()
+  })
+
+  // learningTools=true (default) shows them
+  it('shows snip/loop/pomodoro when learningTools is true', () => {
+    renderToolbar({
+      learningTools: true,
+      onToggleSnipMode: vi.fn(),
+      snipMode: false,
+      hasSnips: true,
+      onLoopSorted: vi.fn(),
+      onLoopShuffled: vi.fn(),
+    })
+    expect(screen.getByLabelText('Snip mode')).toBeInTheDocument()
+    expect(screen.getByLabelText('Loop sorted')).toBeInTheDocument()
+    expect(screen.getByTestId('pomodoro-timer')).toBeInTheDocument()
+  })
 })

@@ -18,7 +18,7 @@ import { OutlineSidebar } from '../components/OutlineSidebar'
 import { HighlightsPanel } from '../components/HighlightsPanel'
 import { BookmarksPanel } from '../components/BookmarksPanel'
 import { SnipBanner } from '../components/SnipBanner'
-import { setReaderSnipMode, setReaderHasSnips, setReaderZenMode } from '../lib/readerState'
+import { setReaderSnipMode, setReaderHasSnips, setReaderZenMode, setReaderLearningTools } from '../lib/readerState'
 
 export function ReaderPage() {
   const { slug } = useParams<{ slug: string }>()
@@ -44,10 +44,15 @@ export function ReaderPage() {
   const [pendingSnip, setPendingSnip] = useState<{ page: number; x: number; y: number; w: number; h: number } | null>(null)
   const sessionSnipCount = useRef(0)
   const snipModeRef = useRef(false)
+  const [zenMode, setZenMode] = useState(false)
+  const [learningTools, setLearningTools] = useState(() => {
+    try { return localStorage.getItem('axiomatic:learning-tools') === 'true' } catch { return false }
+  })
 
   useEffect(() => { setReaderHasSnips(snips.length > 0) }, [snips])
   useEffect(() => { setReaderSnipMode(snipMode) }, [snipMode])
   useEffect(() => { setReaderZenMode(zenMode) }, [zenMode])
+  useEffect(() => { setReaderLearningTools(learningTools); localStorage.setItem('axiomatic:learning-tools', String(learningTools)) }, [learningTools])
   useEffect(() => {
     return () => { setReaderSnipMode(false); setReaderHasSnips(false); setReaderZenMode(false) }
   }, [])
@@ -77,7 +82,6 @@ export function ReaderPage() {
   const [highlightsPaneWidth, setHighlightsPaneWidth] = useState(280)
   const [bookmarksOpen, setBookmarksOpen] = useState(false)
   const [bookmarksPaneWidth, setBookmarksPaneWidth] = useState(280)
-  const [zenMode, setZenMode] = useState(false)
   const [scrollRequest, setScrollRequest] = useState<{ page: number; seq: number } | null>(null)
   const [savedProgressPage, setSavedProgressPage] = useState<number | null>(null)
   const [outlinePaneWidth, setOutlinePaneWidth] = useState(200)
@@ -200,6 +204,7 @@ export function ReaderPage() {
       'axiomatic:toggle-bookmarks': () => setBookmarksOpen((o) => !o),
       'axiomatic:toggle-highlights': () => setHighlightsOpen((o) => !o),
       'axiomatic:toggle-zen': () => setZenMode((z) => !z),
+      'axiomatic:toggle-learning-tools': () => setLearningTools((v) => !v),
       'axiomatic:toggle-snip': () => { if (snipModeRef.current) exitSnipMode(); else enterSnipMode() },
       'axiomatic:exit-snip': exitSnipMode,
     }
@@ -422,6 +427,7 @@ export function ReaderPage() {
           hasSnips={snips.length > 0}
           onLoopSorted={() => slug && navigate(`/loop/${slug}?mode=sorted`)}
           onLoopShuffled={() => slug && navigate(`/loop/${slug}?mode=shuffled`)}
+          learningTools={learningTools}
         />
       </div>
       {!zenMode && (
