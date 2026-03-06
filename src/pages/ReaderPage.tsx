@@ -396,7 +396,7 @@ export function ReaderPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {!zenMode && (
+      <div style={zenMode ? { display: 'none' } : undefined}>
         <ReaderToolbar
           title={book.title}
           currentPage={currentPage}
@@ -413,8 +413,11 @@ export function ReaderPage() {
           onSearchPrev={search.prevMatch}
           savedProgressPage={savedProgressPage}
           onBackToProgress={handleBackToProgress}
+          zenMode={zenMode}
+          activeSlug={slug}
+          activeDirPath={book.dir_path}
         />
-      )}
+      </div>
       {!zenMode && (
         <TabBar
           tabs={tabs}

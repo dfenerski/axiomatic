@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { togglePalette } from '../lib/palette'
+import { PomodoroTimer } from './PomodoroTimer'
 
 const MIN_ZOOM = 0.25
 const MAX_ZOOM = 5
@@ -22,6 +23,9 @@ interface Props {
   onSearchPrev: () => void
   savedProgressPage?: number | null
   onBackToProgress?: () => void
+  zenMode?: boolean
+  activeSlug?: string
+  activeDirPath?: string
 }
 
 export function ReaderToolbar({
@@ -40,6 +44,9 @@ export function ReaderToolbar({
   onSearchPrev,
   savedProgressPage,
   onBackToProgress,
+  zenMode,
+  activeSlug,
+  activeDirPath,
 }: Props) {
   const canZoomOut = zoom > MIN_ZOOM
   const canZoomIn = zoom < MAX_ZOOM
@@ -182,6 +189,7 @@ export function ReaderToolbar({
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
           </button>
+          <PomodoroTimer zenMode={zenMode ?? false} activeSlug={activeSlug} activeDirPath={activeDirPath} />
           <button
             onClick={togglePalette}
             className={iconBtnClass}

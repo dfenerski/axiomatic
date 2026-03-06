@@ -70,6 +70,8 @@ pub struct Snip {
     pub width: f64,
     pub height: f64,
     pub created_at: String,
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -86,6 +88,32 @@ pub struct OrphanCandidate {
     pub new_slug_candidate: String,
     pub dir_path: String,
     pub evidence: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StudySession {
+    pub id: String,
+    pub started_at: String,
+    pub ended_at: String,
+    pub duration_minutes: i64,
+    pub books: Vec<StudySessionBook>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StudySessionBook {
+    pub slug: String,
+    pub dir_path: String,
+}
+
+/// Wrapper used by the `log_study_session` IPC command. Each entry specifies
+/// the library directory to write into, along with the session payload.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionEntry {
+    pub dir_path: String,
+    pub session: StudySession,
 }
 
 impl BookTagMapping {

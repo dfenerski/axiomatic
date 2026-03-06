@@ -65,10 +65,34 @@ fn query_all_directories(conn: &Connection) -> Result<Vec<Directory>, String> {
     Ok(dirs)
 }
 
+pub fn list_directories_inner(conn: &Connection) -> Result<Vec<Directory>, String> {
+    query_all_directories(conn)
+}
+
 #[tauri::command]
 pub fn list_directories(state: State<'_, DbState>) -> Result<Vec<Directory>, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
-    query_all_directories(&conn)
+    list_directories_inner(&conn)
+}
+
+/// Insert a directory into SQLite and return it. Does NOT check if the path
+/// is a real directory on disk (caller must verify). Does NOT create
+/// .axiomatic/ (caller must call ensure_axiomatic_dir separately).
+pub fn add_directory_inner(conn: &Connection, path: &str, label: &str) -> Result<Directory, String> {
+    conn.execute(
+        "INSERT INTO directories (path, label) VALUES (?1, ?2)",
+        rusqlite::params![path, label],
+    )
+    .map_err(|e| e.to_string())?;
+
+    let id = conn.last_insert_rowid();
+    let mut stmt = conn
+        .prepare("SELECT id, path, label, added_at FROM directories WHERE id = ?1")
+        .map_err(|e| e.to_string())?;
+    let dir = stmt
+        .query_row([id], row_to_directory)
+        .map_err(|e| e.to_string())?;
+    Ok(dir)
 }
 
 #[tauri::command]
@@ -83,31 +107,24 @@ pub fn add_directory(path: String, state: State<'_, DbState>) -> Result<Director
         .unwrap_or_else(|| path.clone());
 
     let conn = state.0.lock().map_err(|e| e.to_string())?;
-    conn.execute(
-        "INSERT INTO directories (path, label) VALUES (?1, ?2)",
-        rusqlite::params![path, label],
-    )
-    .map_err(|e| e.to_string())?;
+    let dir = add_directory_inner(&conn, &path, &label)?;
 
     // Auto-create .axiomatic/ project state directory
     ensure_axiomatic_dir(&path)?;
 
-    let id = conn.last_insert_rowid();
-    let mut stmt = conn
-        .prepare("SELECT id, path, label, added_at FROM directories WHERE id = ?1")
-        .map_err(|e| e.to_string())?;
-    let dir = stmt
-        .query_row([id], row_to_directory)
-        .map_err(|e| e.to_string())?;
     Ok(dir)
+}
+
+pub fn remove_directory_inner(conn: &Connection, id: i64) -> Result<(), String> {
+    conn.execute("DELETE FROM directories WHERE id = ?1", [id])
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
 pub fn remove_directory(id: i64, state: State<'_, DbState>) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
-    conn.execute("DELETE FROM directories WHERE id = ?1", [id])
-        .map_err(|e| e.to_string())?;
-    Ok(())
+    remove_directory_inner(&conn, id)
 }
 
 #[tauri::command]
@@ -252,9 +269,7 @@ pub fn read_file_bytes(path: String) -> Result<tauri::ipc::Response, String> {
     Ok(tauri::ipc::Response::new(bytes))
 }
 
-#[tauri::command]
-pub fn get_note(slug: String, page: i64, state: State<'_, DbState>) -> Result<Option<NoteRecord>, String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
+pub fn get_note_inner(conn: &Connection, slug: &str, page: i64) -> Result<Option<NoteRecord>, String> {
     let mut stmt = conn
         .prepare("SELECT id, slug, page, content, format, updated_at FROM notes WHERE slug = ?1 AND page = ?2")
         .map_err(|e| e.to_string())?;
@@ -267,8 +282,12 @@ pub fn get_note(slug: String, page: i64, state: State<'_, DbState>) -> Result<Op
 }
 
 #[tauri::command]
-pub fn set_note(slug: String, page: i64, content: String, format: String, state: State<'_, DbState>) -> Result<(), String> {
+pub fn get_note(slug: String, page: i64, state: State<'_, DbState>) -> Result<Option<NoteRecord>, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
+    get_note_inner(&conn, &slug, page)
+}
+
+pub fn set_note_inner(conn: &Connection, slug: &str, page: i64, content: &str, format: &str) -> Result<(), String> {
     if content.is_empty() {
         conn.execute(
             "DELETE FROM notes WHERE slug = ?1 AND page = ?2",
@@ -286,8 +305,12 @@ pub fn set_note(slug: String, page: i64, content: String, format: String, state:
 }
 
 #[tauri::command]
-pub fn list_notes_for_book(slug: String, state: State<'_, DbState>) -> Result<Vec<NoteRecord>, String> {
+pub fn set_note(slug: String, page: i64, content: String, format: String, state: State<'_, DbState>) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
+    set_note_inner(&conn, &slug, page, &content, &format)
+}
+
+pub fn list_notes_for_book_inner(conn: &Connection, slug: &str) -> Result<Vec<NoteRecord>, String> {
     let mut stmt = conn
         .prepare("SELECT id, slug, page, content, format, updated_at FROM notes WHERE slug = ?1 ORDER BY page")
         .map_err(|e| e.to_string())?;
@@ -300,8 +323,12 @@ pub fn list_notes_for_book(slug: String, state: State<'_, DbState>) -> Result<Ve
 }
 
 #[tauri::command]
-pub fn delete_note(slug: String, page: i64, state: State<'_, DbState>) -> Result<(), String> {
+pub fn list_notes_for_book(slug: String, state: State<'_, DbState>) -> Result<Vec<NoteRecord>, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
+    list_notes_for_book_inner(&conn, &slug)
+}
+
+pub fn delete_note_inner(conn: &Connection, slug: &str, page: i64) -> Result<(), String> {
     conn.execute(
         "DELETE FROM notes WHERE slug = ?1 AND page = ?2",
         rusqlite::params![slug, page],
@@ -310,8 +337,12 @@ pub fn delete_note(slug: String, page: i64, state: State<'_, DbState>) -> Result
 }
 
 #[tauri::command]
-pub fn save_note_image(slug: String, page: i64, filename: String, data: Vec<u8>, state: State<'_, DbState>) -> Result<i64, String> {
+pub fn delete_note(slug: String, page: i64, state: State<'_, DbState>) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
+    delete_note_inner(&conn, &slug, page)
+}
+
+pub fn save_note_image_inner(conn: &Connection, slug: &str, page: i64, filename: &str, data: &[u8]) -> Result<i64, String> {
     conn.execute(
         "INSERT INTO note_images (note_slug, note_page, filename, data)
          VALUES (?1, ?2, ?3, ?4)
@@ -322,8 +353,12 @@ pub fn save_note_image(slug: String, page: i64, filename: String, data: Vec<u8>,
 }
 
 #[tauri::command]
-pub fn get_note_image(id: i64, state: State<'_, DbState>) -> Result<tauri::ipc::Response, String> {
+pub fn save_note_image(slug: String, page: i64, filename: String, data: Vec<u8>, state: State<'_, DbState>) -> Result<i64, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
+    save_note_image_inner(&conn, &slug, page, &filename, &data)
+}
+
+pub fn get_note_image_inner(conn: &Connection, id: i64) -> Result<Vec<u8>, String> {
     let data: Vec<u8> = conn
         .query_row(
             "SELECT data FROM note_images WHERE id = ?1",
@@ -331,6 +366,13 @@ pub fn get_note_image(id: i64, state: State<'_, DbState>) -> Result<tauri::ipc::
             |row| row.get(0),
         )
         .map_err(|e| e.to_string())?;
+    Ok(data)
+}
+
+#[tauri::command]
+pub fn get_note_image(id: i64, state: State<'_, DbState>) -> Result<tauri::ipc::Response, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let data = get_note_image_inner(&conn, id)?;
     Ok(tauri::ipc::Response::new(data))
 }
 
@@ -386,9 +428,7 @@ pub fn migrate_notes_from_json(json_data: String, state: State<'_, DbState>) -> 
     Ok(count)
 }
 
-#[tauri::command]
-pub fn list_tags(state: State<'_, DbState>) -> Result<Vec<Tag>, String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
+pub fn list_tags_inner(conn: &Connection) -> Result<Vec<Tag>, String> {
     let mut stmt = conn
         .prepare("SELECT id, name, color FROM tags ORDER BY id")
         .map_err(|e| e.to_string())?;
@@ -407,20 +447,28 @@ pub fn list_tags(state: State<'_, DbState>) -> Result<Vec<Tag>, String> {
 }
 
 #[tauri::command]
-pub fn create_tag(name: String, color: String, state: State<'_, DbState>) -> Result<Tag, String> {
+pub fn list_tags(state: State<'_, DbState>) -> Result<Vec<Tag>, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
+    list_tags_inner(&conn)
+}
+
+pub fn create_tag_inner(conn: &Connection, name: &str, color: &str) -> Result<Tag, String> {
     conn.execute(
         "INSERT INTO tags (name, color) VALUES (?1, ?2)",
         rusqlite::params![name, color],
     )
     .map_err(|e| e.to_string())?;
     let id = conn.last_insert_rowid();
-    Ok(Tag { id, name, color })
+    Ok(Tag { id, name: name.to_string(), color: color.to_string() })
 }
 
 #[tauri::command]
-pub fn delete_tag(id: i64, state: State<'_, DbState>) -> Result<(), String> {
+pub fn create_tag(name: String, color: String, state: State<'_, DbState>) -> Result<Tag, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
+    create_tag_inner(&conn, &name, &color)
+}
+
+pub fn delete_tag_inner(conn: &Connection, id: i64) -> Result<(), String> {
     conn.execute("PRAGMA foreign_keys = ON", [])
         .map_err(|e| e.to_string())?;
     conn.execute("DELETE FROM tags WHERE id = ?1", [id])
@@ -429,8 +477,12 @@ pub fn delete_tag(id: i64, state: State<'_, DbState>) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn update_tag_color(id: i64, color: String, state: State<'_, DbState>) -> Result<(), String> {
+pub fn delete_tag(id: i64, state: State<'_, DbState>) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
+    delete_tag_inner(&conn, id)
+}
+
+pub fn update_tag_color_inner(conn: &Connection, id: i64, color: &str) -> Result<(), String> {
     conn.execute(
         "UPDATE tags SET color = ?1 WHERE id = ?2",
         rusqlite::params![color, id],
@@ -440,8 +492,12 @@ pub fn update_tag_color(id: i64, color: String, state: State<'_, DbState>) -> Re
 }
 
 #[tauri::command]
-pub fn tag_book(book_slug: String, tag_id: i64, state: State<'_, DbState>) -> Result<(), String> {
+pub fn update_tag_color(id: i64, color: String, state: State<'_, DbState>) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
+    update_tag_color_inner(&conn, id, &color)
+}
+
+pub fn tag_book_inner(conn: &Connection, book_slug: &str, tag_id: i64) -> Result<(), String> {
     conn.execute(
         "INSERT OR IGNORE INTO book_tags (book_slug, tag_id) VALUES (?1, ?2)",
         rusqlite::params![book_slug, tag_id],
@@ -451,8 +507,12 @@ pub fn tag_book(book_slug: String, tag_id: i64, state: State<'_, DbState>) -> Re
 }
 
 #[tauri::command]
-pub fn untag_book(book_slug: String, tag_id: i64, state: State<'_, DbState>) -> Result<(), String> {
+pub fn tag_book(book_slug: String, tag_id: i64, state: State<'_, DbState>) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
+    tag_book_inner(&conn, &book_slug, tag_id)
+}
+
+pub fn untag_book_inner(conn: &Connection, book_slug: &str, tag_id: i64) -> Result<(), String> {
     conn.execute(
         "DELETE FROM book_tags WHERE book_slug = ?1 AND tag_id = ?2",
         rusqlite::params![book_slug, tag_id],
@@ -462,8 +522,12 @@ pub fn untag_book(book_slug: String, tag_id: i64, state: State<'_, DbState>) -> 
 }
 
 #[tauri::command]
-pub fn list_book_tags_all(state: State<'_, DbState>) -> Result<Vec<BookTagMapping>, String> {
+pub fn untag_book(book_slug: String, tag_id: i64, state: State<'_, DbState>) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
+    untag_book_inner(&conn, &book_slug, tag_id)
+}
+
+pub fn list_book_tags_all_inner(conn: &Connection) -> Result<Vec<BookTagMapping>, String> {
     let mut stmt = conn
         .prepare(
             "SELECT bt.book_slug, t.id, t.name, t.color
@@ -480,6 +544,12 @@ pub fn list_book_tags_all(state: State<'_, DbState>) -> Result<Vec<BookTagMappin
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
     Ok(BookTagMapping::group_from_rows(rows))
+}
+
+#[tauri::command]
+pub fn list_book_tags_all(state: State<'_, DbState>) -> Result<Vec<BookTagMapping>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    list_book_tags_all_inner(&conn)
 }
 
 #[tauri::command]
@@ -909,15 +979,14 @@ pub async fn detect_orphaned_slugs(
     Ok(candidates)
 }
 
-#[tauri::command]
-pub fn migrate_slug(
-    old_slug: String,
-    new_slug: String,
-    dir_path: String,
-    state: State<'_, DbState>,
+/// Migrate slug references in SQLite tables and .axiomatic/ JSON files.
+/// The SQLite updates are wrapped in a transaction for atomicity.
+pub fn migrate_slug_inner(
+    conn: &Connection,
+    old_slug: &str,
+    new_slug: &str,
+    dir_path: &str,
 ) -> Result<(), String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
-
     // 1. SQLite transaction: update all tables atomically
     conn.execute_batch("BEGIN TRANSACTION")
         .map_err(|e| e.to_string())?;
@@ -947,12 +1016,6 @@ pub fn migrate_slug(
         )
         .map_err(|e| e.to_string())?;
 
-        conn.execute(
-            "UPDATE snips SET slug = ?1 WHERE slug = ?2",
-            rusqlite::params![new_slug, old_slug],
-        )
-        .map_err(|e| e.to_string())?;
-
         Ok(())
     })();
 
@@ -968,15 +1031,15 @@ pub fn migrate_slug(
     }
 
     // 2. Update .axiomatic/ JSON files in the directory
-    let axiomatic_dir = Path::new(&dir_path).join(".axiomatic");
+    let axiomatic_dir = Path::new(dir_path).join(".axiomatic");
     if axiomatic_dir.is_dir() {
         // progress.json
         let progress_path = axiomatic_dir.join("progress.json");
         if progress_path.is_file() {
             if let Ok(data) = std::fs::read_to_string(&progress_path) {
                 if let Ok(mut map) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&data) {
-                    if let Some(val) = map.remove(&old_slug) {
-                        map.insert(new_slug.clone(), val);
+                    if let Some(val) = map.remove(old_slug) {
+                        map.insert(new_slug.to_string(), val);
                         if let Ok(json) = serde_json::to_string_pretty(&map) {
                             std::fs::write(&progress_path, json).ok();
                         }
@@ -990,8 +1053,8 @@ pub fn migrate_slug(
         if starred_path.is_file() {
             if let Ok(data) = std::fs::read_to_string(&starred_path) {
                 if let Ok(mut map) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&data) {
-                    if let Some(val) = map.remove(&old_slug) {
-                        map.insert(new_slug.clone(), val);
+                    if let Some(val) = map.remove(old_slug) {
+                        map.insert(new_slug.to_string(), val);
                         if let Ok(json) = serde_json::to_string_pretty(&map) {
                             std::fs::write(&starred_path, json).ok();
                         }
@@ -1007,8 +1070,8 @@ pub fn migrate_slug(
                 if let Ok(mut arr) = serde_json::from_str::<Vec<serde_json::Value>>(&data) {
                     for item in arr.iter_mut() {
                         if let Some(obj) = item.as_object_mut() {
-                            if obj.get("slug").and_then(|v| v.as_str()) == Some(&old_slug) {
-                                obj.insert("slug".into(), serde_json::Value::String(new_slug.clone()));
+                            if obj.get("slug").and_then(|v| v.as_str()) == Some(old_slug) {
+                                obj.insert("slug".into(), serde_json::Value::String(new_slug.to_string()));
                             }
                         }
                     }
@@ -1024,8 +1087,8 @@ pub fn migrate_slug(
         if xp_path.is_file() {
             if let Ok(data) = std::fs::read_to_string(&xp_path) {
                 if let Ok(mut map) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&data) {
-                    if let Some(val) = map.remove(&old_slug) {
-                        map.insert(new_slug.clone(), val);
+                    if let Some(val) = map.remove(old_slug) {
+                        map.insert(new_slug.to_string(), val);
                         if let Ok(json) = serde_json::to_string_pretty(&map) {
                             std::fs::write(&xp_path, json).ok();
                         }
@@ -1033,8 +1096,580 @@ pub fn migrate_slug(
                 }
             }
         }
+
+        // pomodoro-xp.json
+        let pomodoro_xp_path = axiomatic_dir.join("pomodoro-xp.json");
+        if pomodoro_xp_path.is_file() {
+            if let Ok(data) = std::fs::read_to_string(&pomodoro_xp_path) {
+                if let Ok(mut map) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&data) {
+                    if let Some(val) = map.remove(old_slug) {
+                        map.insert(new_slug.to_string(), val);
+                        if let Ok(json) = serde_json::to_string_pretty(&map) {
+                            std::fs::write(&pomodoro_xp_path, json).ok();
+                        }
+                    }
+                }
+            }
+        }
+
+        // sessions.json — update slug references in book entries
+        let sessions_path = axiomatic_dir.join("sessions.json");
+        if sessions_path.is_file() {
+            if let Ok(data) = std::fs::read_to_string(&sessions_path) {
+                if let Ok(mut arr) = serde_json::from_str::<Vec<serde_json::Value>>(&data) {
+                    for session in arr.iter_mut() {
+                        if let Some(books) = session.get_mut("books").and_then(|b| b.as_array_mut()) {
+                            for book in books.iter_mut() {
+                                if let Some(obj) = book.as_object_mut() {
+                                    if obj.get("slug").and_then(|v| v.as_str()) == Some(old_slug) {
+                                        obj.insert("slug".into(), serde_json::Value::String(new_slug.to_string()));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if let Ok(json) = serde_json::to_string_pretty(&arr) {
+                        std::fs::write(&sessions_path, json).ok();
+                    }
+                }
+            }
+        }
     }
 
     Ok(())
+}
+
+#[tauri::command]
+pub fn migrate_slug(
+    old_slug: String,
+    new_slug: String,
+    dir_path: String,
+    state: State<'_, DbState>,
+) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    migrate_slug_inner(&conn, &old_slug, &new_slug, &dir_path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db;
+
+    /// Helper: create a fully migrated in-memory-like SQLite database in a TempDir.
+    fn test_db() -> (tempfile::TempDir, Connection) {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let conn = db::init_db(&db_path).unwrap();
+        (dir, conn)
+    }
+
+    // ================================================================
+    // ac-120: ProjectStateDir operations
+    // ================================================================
+
+    #[test]
+    fn ensure_axiomatic_dir_creates_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let dir_path = dir.path().to_string_lossy().to_string();
+        let result = ensure_axiomatic_dir(&dir_path).unwrap();
+        assert!(result.exists());
+        assert!(result.is_dir());
+        assert_eq!(result.file_name().unwrap(), ".axiomatic");
+    }
+
+    #[test]
+    fn ensure_axiomatic_dir_idempotent() {
+        let dir = tempfile::tempdir().unwrap();
+        let dir_path = dir.path().to_string_lossy().to_string();
+        let first = ensure_axiomatic_dir(&dir_path).unwrap();
+        let second = ensure_axiomatic_dir(&dir_path).unwrap();
+        assert_eq!(first, second);
+        assert!(second.is_dir());
+    }
+
+    #[test]
+    fn progress_json_roundtrip() {
+        let dir = tempfile::tempdir().unwrap();
+        let dir_path = dir.path().to_string_lossy().to_string();
+
+        let progress = BookProgress {
+            current_page: 42,
+            total_pages: 100,
+            last_read_at: "2026-01-01T00:00:00Z".to_string(),
+        };
+
+        save_progress(dir_path.clone(), "test-slug".into(), progress.clone()).unwrap();
+        let loaded = get_all_progress(dir_path).unwrap();
+
+        assert_eq!(loaded.len(), 1);
+        let p = loaded.get("test-slug").unwrap();
+        assert_eq!(p.current_page, 42);
+        assert_eq!(p.total_pages, 100);
+        assert_eq!(p.last_read_at, "2026-01-01T00:00:00Z");
+    }
+
+    #[test]
+    fn progress_read_nonexistent_returns_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let dir_path = dir.path().to_string_lossy().to_string();
+        let loaded = get_all_progress(dir_path).unwrap();
+        assert!(loaded.is_empty());
+    }
+
+    // ================================================================
+    // ac-121: Orphan detection and slug migration
+    // ================================================================
+
+    #[test]
+    fn bigram_similarity_known_pair() {
+        let score = bigram_similarity("foo_bar", "foo_baz");
+        assert!(score > 0.0, "Expected positive similarity, got {}", score);
+        assert!(score < 1.0, "Expected less than 1.0, got {}", score);
+    }
+
+    #[test]
+    fn bigram_similarity_identical() {
+        let score = bigram_similarity("hello", "hello");
+        assert!((score - 1.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn bigram_similarity_empty() {
+        assert_eq!(bigram_similarity("", "hello"), 0.0);
+        assert_eq!(bigram_similarity("a", "hello"), 0.0);
+    }
+
+    #[test]
+    fn collect_db_slugs_finds_references() {
+        let (_dir, conn) = test_db();
+
+        // Insert data referencing slugs
+        conn.execute(
+            "INSERT INTO notes (slug, page, content, format, updated_at) VALUES ('orphan-slug', 1, 'text', 'md', datetime('now'))",
+            [],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO highlights (slug, page, x, y, width, height, color, text, group_id) VALUES ('orphan-slug', 1, 0.0, 0.0, 1.0, 1.0, 'yellow', '', '')",
+            [],
+        ).unwrap();
+
+        let slugs = collect_db_slugs(&conn).unwrap();
+        assert!(slugs.contains_key("orphan-slug"));
+        let evidence = slugs.get("orphan-slug").unwrap();
+        assert!(evidence.contains(&"notes".to_string()));
+        assert!(evidence.contains(&"highlights".to_string()));
+    }
+
+    #[test]
+    fn migrate_slug_updates_all_tiers() {
+        let dir = tempfile::tempdir().unwrap();
+        let dir_path = dir.path().to_string_lossy().to_string();
+
+        // Create .axiomatic/ and populate JSON files
+        let axiomatic_dir = ensure_axiomatic_dir(&dir_path).unwrap();
+
+        // progress.json
+        std::fs::write(
+            axiomatic_dir.join("progress.json"),
+            r#"{"old-slug": {"currentPage": 5, "totalPages": 50, "lastReadAt": "2026-01-01T00:00:00Z"}}"#,
+        ).unwrap();
+
+        // starred.json
+        std::fs::write(
+            axiomatic_dir.join("starred.json"),
+            r#"{"old-slug": true}"#,
+        ).unwrap();
+
+        // snips.json
+        std::fs::write(
+            axiomatic_dir.join("snips.json"),
+            r#"[{"id":"abc","slug":"old-slug","full_path":"/a.pdf","page":1,"label":"test","x":0,"y":0,"width":1,"height":1,"created_at":"2026-01-01T00:00:00Z"}]"#,
+        ).unwrap();
+
+        // xp.json
+        std::fs::write(
+            axiomatic_dir.join("xp.json"),
+            r#"{"old-slug": 10}"#,
+        ).unwrap();
+
+        // Setup SQLite with data referencing old slug
+        let (_db_dir, conn) = test_db();
+        conn.execute(
+            "INSERT INTO notes (slug, page, content, format, updated_at) VALUES ('old-slug', 1, 'note', 'md', datetime('now'))",
+            [],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO highlights (slug, page, x, y, width, height, color, text, group_id) VALUES ('old-slug', 2, 0.0, 0.0, 1.0, 1.0, 'yellow', '', 'g1')",
+            [],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO note_images (note_slug, note_page, filename, data) VALUES ('old-slug', 1, 'img.png', X'89504E47')",
+            [],
+        ).unwrap();
+
+        // Create a tag and associate with old slug
+        conn.execute("INSERT INTO tags (name, color) VALUES ('math', 'blue')", []).unwrap();
+        let tag_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO book_tags (book_slug, tag_id) VALUES ('old-slug', ?1)",
+            [tag_id],
+        ).unwrap();
+
+        // Run migration
+        migrate_slug_inner(&conn, "old-slug", "new-slug", &dir_path).unwrap();
+
+        // Verify SQLite updates
+        let note_slug: String = conn
+            .query_row("SELECT slug FROM notes WHERE page = 1", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(note_slug, "new-slug");
+
+        let hl_slug: String = conn
+            .query_row("SELECT slug FROM highlights WHERE page = 2", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(hl_slug, "new-slug");
+
+        let img_slug: String = conn
+            .query_row("SELECT note_slug FROM note_images WHERE filename = 'img.png'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(img_slug, "new-slug");
+
+        let bt_slug: String = conn
+            .query_row("SELECT book_slug FROM book_tags WHERE tag_id = ?1", [tag_id], |r| r.get(0))
+            .unwrap();
+        assert_eq!(bt_slug, "new-slug");
+
+        // Verify JSON file updates
+        let progress_data = std::fs::read_to_string(axiomatic_dir.join("progress.json")).unwrap();
+        let progress_map: serde_json::Map<String, serde_json::Value> =
+            serde_json::from_str(&progress_data).unwrap();
+        assert!(progress_map.contains_key("new-slug"));
+        assert!(!progress_map.contains_key("old-slug"));
+
+        let starred_data = std::fs::read_to_string(axiomatic_dir.join("starred.json")).unwrap();
+        let starred_map: serde_json::Map<String, serde_json::Value> =
+            serde_json::from_str(&starred_data).unwrap();
+        assert!(starred_map.contains_key("new-slug"));
+        assert!(!starred_map.contains_key("old-slug"));
+
+        let snips_data = std::fs::read_to_string(axiomatic_dir.join("snips.json")).unwrap();
+        let snips_arr: Vec<serde_json::Value> = serde_json::from_str(&snips_data).unwrap();
+        assert_eq!(snips_arr[0]["slug"].as_str().unwrap(), "new-slug");
+
+        let xp_data = std::fs::read_to_string(axiomatic_dir.join("xp.json")).unwrap();
+        let xp_map: serde_json::Map<String, serde_json::Value> =
+            serde_json::from_str(&xp_data).unwrap();
+        assert!(xp_map.contains_key("new-slug"));
+        assert!(!xp_map.contains_key("old-slug"));
+    }
+
+    // ================================================================
+    // ac-141: Progress, Starred, XP commands
+    // ================================================================
+
+    #[test]
+    fn save_and_get_progress_roundtrip() {
+        let dir = tempfile::tempdir().unwrap();
+        let dir_path = dir.path().to_string_lossy().to_string();
+
+        save_progress(
+            dir_path.clone(),
+            "book-a".into(),
+            BookProgress {
+                current_page: 10,
+                total_pages: 200,
+                last_read_at: "2026-03-01T12:00:00Z".into(),
+            },
+        ).unwrap();
+
+        save_progress(
+            dir_path.clone(),
+            "book-b".into(),
+            BookProgress {
+                current_page: 1,
+                total_pages: 50,
+                last_read_at: "2026-03-01T12:00:00Z".into(),
+            },
+        ).unwrap();
+
+        let all = get_all_progress(dir_path).unwrap();
+        assert_eq!(all.len(), 2);
+        assert_eq!(all["book-a"].current_page, 10);
+        assert_eq!(all["book-b"].total_pages, 50);
+    }
+
+    #[test]
+    fn toggle_starred_add_and_remove() {
+        let dir = tempfile::tempdir().unwrap();
+        let dir_path = dir.path().to_string_lossy().to_string();
+
+        // First toggle adds
+        let added = toggle_starred(dir_path.clone(), "my-book".into()).unwrap();
+        assert!(added, "First toggle should return true (added)");
+
+        // Verify it is in the list
+        let starred = get_starred(dir_path.clone()).unwrap();
+        assert!(starred.contains(&"my-book".to_string()));
+
+        // Second toggle removes
+        let removed = toggle_starred(dir_path.clone(), "my-book".into()).unwrap();
+        assert!(!removed, "Second toggle should return false (removed)");
+
+        // Verify it is gone
+        let starred = get_starred(dir_path).unwrap();
+        assert!(!starred.contains(&"my-book".to_string()));
+    }
+
+    #[test]
+    fn xp_default_and_increment() {
+        let dir = tempfile::tempdir().unwrap();
+        let dir_path = dir.path().to_string_lossy().to_string();
+
+        // Unknown slug returns 0
+        let xp = get_xp(dir_path.clone(), "slug-a".into()).unwrap();
+        assert_eq!(xp, 0);
+
+        // First increment returns 1
+        let xp = increment_xp(dir_path.clone(), "slug-a".into()).unwrap();
+        assert_eq!(xp, 1);
+
+        // Second increment returns 2
+        let xp = increment_xp(dir_path.clone(), "slug-a".into()).unwrap();
+        assert_eq!(xp, 2);
+
+        // Verify via get_xp
+        let xp = get_xp(dir_path, "slug-a".into()).unwrap();
+        assert_eq!(xp, 2);
+    }
+
+    // ================================================================
+    // ac-142: Directory management
+    // ================================================================
+
+    #[test]
+    fn add_list_remove_directory() {
+        let (_dir, conn) = test_db();
+
+        // Add a directory
+        let dir = add_directory_inner(&conn, "/tmp/test-books", "test-books").unwrap();
+        assert!(dir.id > 0);
+        assert_eq!(dir.path, "/tmp/test-books");
+        assert_eq!(dir.label, "test-books");
+
+        // List directories includes it
+        let dirs = list_directories_inner(&conn).unwrap();
+        assert_eq!(dirs.len(), 1);
+        assert_eq!(dirs[0].id, dir.id);
+
+        // Remove it
+        remove_directory_inner(&conn, dir.id).unwrap();
+
+        // List is now empty
+        let dirs = list_directories_inner(&conn).unwrap();
+        assert!(dirs.is_empty());
+    }
+
+    // ================================================================
+    // ac-143: Note operations
+    // ================================================================
+
+    #[test]
+    fn set_get_delete_note() {
+        let (_dir, conn) = test_db();
+
+        // Set a note
+        set_note_inner(&conn, "book-a", 5, "Hello world", "markdown").unwrap();
+
+        // Get it back
+        let note = get_note_inner(&conn, "book-a", 5).unwrap().unwrap();
+        assert_eq!(note.slug, "book-a");
+        assert_eq!(note.page, 5);
+        assert_eq!(note.content, "Hello world");
+        assert_eq!(note.format, "markdown");
+
+        // Delete it
+        delete_note_inner(&conn, "book-a", 5).unwrap();
+
+        // Verify gone
+        let note = get_note_inner(&conn, "book-a", 5).unwrap();
+        assert!(note.is_none());
+    }
+
+    #[test]
+    fn list_notes_for_book_returns_all_pages() {
+        let (_dir, conn) = test_db();
+
+        set_note_inner(&conn, "book-a", 1, "Note page 1", "md").unwrap();
+        set_note_inner(&conn, "book-a", 3, "Note page 3", "md").unwrap();
+        set_note_inner(&conn, "book-b", 1, "Other book", "md").unwrap();
+
+        let notes = list_notes_for_book_inner(&conn, "book-a").unwrap();
+        assert_eq!(notes.len(), 2);
+        assert_eq!(notes[0].page, 1);
+        assert_eq!(notes[1].page, 3);
+    }
+
+    #[test]
+    fn set_note_empty_content_deletes() {
+        let (_dir, conn) = test_db();
+
+        set_note_inner(&conn, "book-a", 1, "Content", "md").unwrap();
+        assert!(get_note_inner(&conn, "book-a", 1).unwrap().is_some());
+
+        // Setting empty content deletes the note
+        set_note_inner(&conn, "book-a", 1, "", "md").unwrap();
+        assert!(get_note_inner(&conn, "book-a", 1).unwrap().is_none());
+    }
+
+    #[test]
+    fn save_and_get_note_image() {
+        let (_dir, conn) = test_db();
+
+        let data = vec![0x89, 0x50, 0x4E, 0x47]; // PNG magic bytes
+        let id = save_note_image_inner(&conn, "book-a", 1, "test.png", &data).unwrap();
+        assert!(id > 0);
+
+        let loaded = get_note_image_inner(&conn, id).unwrap();
+        assert_eq!(loaded, data);
+    }
+
+    // ================================================================
+    // ac-144: Tag operations
+    // ================================================================
+
+    #[test]
+    fn create_list_update_delete_tag() {
+        let (_dir, conn) = test_db();
+
+        // Create tag
+        let tag = create_tag_inner(&conn, "algebra", "#ff0000").unwrap();
+        assert!(tag.id > 0);
+        assert_eq!(tag.name, "algebra");
+        assert_eq!(tag.color, "#ff0000");
+
+        // List tags includes it
+        let tags = list_tags_inner(&conn).unwrap();
+        assert_eq!(tags.len(), 1);
+        assert_eq!(tags[0].name, "algebra");
+
+        // Update color
+        update_tag_color_inner(&conn, tag.id, "#00ff00").unwrap();
+        let tags = list_tags_inner(&conn).unwrap();
+        assert_eq!(tags[0].color, "#00ff00");
+
+        // Delete tag
+        delete_tag_inner(&conn, tag.id).unwrap();
+        let tags = list_tags_inner(&conn).unwrap();
+        assert!(tags.is_empty());
+    }
+
+    #[test]
+    fn tag_and_untag_book() {
+        let (_dir, conn) = test_db();
+
+        let tag = create_tag_inner(&conn, "math", "blue").unwrap();
+
+        // Tag a book
+        tag_book_inner(&conn, "book-a", tag.id).unwrap();
+
+        // Verify via list_book_tags_all
+        let mappings = list_book_tags_all_inner(&conn).unwrap();
+        assert_eq!(mappings.len(), 1);
+        assert_eq!(mappings[0].book_slug, "book-a");
+        assert_eq!(mappings[0].tags.len(), 1);
+        assert_eq!(mappings[0].tags[0].name, "math");
+
+        // Untag the book
+        untag_book_inner(&conn, "book-a", tag.id).unwrap();
+
+        // Verify empty
+        let mappings = list_book_tags_all_inner(&conn).unwrap();
+        assert!(mappings.is_empty());
+    }
+
+    #[test]
+    fn delete_tag_cascades_to_book_tags() {
+        let (_dir, conn) = test_db();
+        conn.execute("PRAGMA foreign_keys = ON", []).unwrap();
+
+        let tag = create_tag_inner(&conn, "physics", "green").unwrap();
+        tag_book_inner(&conn, "book-a", tag.id).unwrap();
+
+        // Delete the tag -- should cascade
+        delete_tag_inner(&conn, tag.id).unwrap();
+
+        let mappings = list_book_tags_all_inner(&conn).unwrap();
+        assert!(mappings.is_empty());
+    }
+
+    // ================================================================
+    // ac-146: File operations
+    // ================================================================
+
+    #[test]
+    fn rename_textbook_changes_filename() {
+        let dir = tempfile::tempdir().unwrap();
+        let original = dir.path().join("old-book.pdf");
+        std::fs::write(&original, b"fake pdf").unwrap();
+
+        rename_textbook(
+            original.to_string_lossy().to_string(),
+            "new-book".to_string(),
+        ).unwrap();
+
+        let expected = dir.path().join("new-book.pdf");
+        assert!(!original.exists(), "Old file should not exist");
+        assert!(expected.exists(), "New file should exist");
+    }
+
+    #[test]
+    fn rename_textbook_preserves_extension() {
+        let dir = tempfile::tempdir().unwrap();
+        let original = dir.path().join("book.pdf");
+        std::fs::write(&original, b"fake pdf").unwrap();
+
+        // Passing name with .pdf extension
+        rename_textbook(
+            original.to_string_lossy().to_string(),
+            "renamed.pdf".to_string(),
+        ).unwrap();
+
+        let expected = dir.path().join("renamed.pdf");
+        assert!(expected.exists());
+    }
+
+    #[test]
+    fn delete_textbook_removes_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("to-delete.pdf");
+        std::fs::write(&file, b"fake pdf").unwrap();
+        assert!(file.exists());
+
+        delete_textbook(file.to_string_lossy().to_string()).unwrap();
+        assert!(!file.exists());
+    }
+
+    #[test]
+    fn delete_textbook_nonexistent_fails() {
+        let result = delete_textbook("/nonexistent/path.pdf".to_string());
+        assert!(result.is_err());
+    }
+
+    // ================================================================
+    // Helper function tests
+    // ================================================================
+
+    #[test]
+    fn sanitize_slug_works() {
+        assert_eq!(sanitize_slug("Hello World"), "hello-world");
+        assert_eq!(sanitize_slug("foo_bar"), "foo_bar");
+        assert_eq!(sanitize_slug("--test--"), "test");
+    }
+
+    #[test]
+    fn title_from_stem_works() {
+        assert_eq!(title_from_stem("hello-world"), "Hello World");
+        assert_eq!(title_from_stem("foo_bar"), "Foo Bar");
+    }
 }
 

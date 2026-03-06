@@ -12,6 +12,7 @@ export interface Snip {
   width: number
   height: number
   created_at: string
+  tags: string[]
 }
 
 export function useSnips(slug: string | undefined, dirPath: string | undefined) {

@@ -14,10 +14,10 @@ const PAGE_GAP = 16
 const BUFFER = 3
 
 const HIGHLIGHT_COLORS = [
-  { label: 'Yellow', color: '#b58900' },
-  { label: 'Orange', color: '#cb4b16' },
-  { label: 'Blue', color: '#268bd2' },
-  { label: 'Green', color: '#859900' },
+  { label: 'Yellow', color: '#facc15' },
+  { label: 'Orange', color: '#fb923c' },
+  { label: 'Blue', color: '#38bdf8' },
+  { label: 'Green', color: '#4ade80' },
 ]
 
 export interface PdfViewerHandle {

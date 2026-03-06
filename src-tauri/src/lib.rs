@@ -6,6 +6,7 @@ mod pdf_commands;
 mod pdf_engine;
 mod pdf_models;
 mod pdf_protocol;
+mod session_commands;
 mod snip_commands;
 
 use commands::{DbState, PendingFile};
@@ -215,6 +216,14 @@ pub fn run() {
             snip_commands::list_snips,
             snip_commands::create_snip,
             snip_commands::delete_snip,
+            snip_commands::list_all_snips,
+            snip_commands::add_snip_tag,
+            snip_commands::remove_snip_tag,
+            snip_commands::list_all_snip_tags,
+            session_commands::log_study_session,
+            session_commands::increment_pomodoro_xp,
+            session_commands::get_pomodoro_xp,
+            session_commands::list_study_sessions,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
