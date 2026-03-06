@@ -4,6 +4,7 @@
 
 let _snipMode = false
 let _hasSnips = false
+let _zenMode = false
 const _listeners = new Set<() => void>()
 
 function notify() {
@@ -17,6 +18,11 @@ export function setReaderSnipMode(v: boolean) {
 
 export function setReaderHasSnips(v: boolean) {
   _hasSnips = v
+  notify()
+}
+
+export function setReaderZenMode(v: boolean) {
+  _zenMode = v
   notify()
 }
 
@@ -34,11 +40,11 @@ export function subscribeReaderState(fn: () => void): () => void {
 }
 
 /** Snapshot object — reference-stable when values haven't changed. */
-let _snapshot = { snipMode: _snipMode, hasSnips: _hasSnips }
+let _snapshot = { snipMode: _snipMode, hasSnips: _hasSnips, zenMode: _zenMode }
 
 export function getReaderStateSnapshot() {
-  if (_snapshot.snipMode !== _snipMode || _snapshot.hasSnips !== _hasSnips) {
-    _snapshot = { snipMode: _snipMode, hasSnips: _hasSnips }
+  if (_snapshot.snipMode !== _snipMode || _snapshot.hasSnips !== _hasSnips || _snapshot.zenMode !== _zenMode) {
+    _snapshot = { snipMode: _snipMode, hasSnips: _hasSnips, zenMode: _zenMode }
   }
   return _snapshot
 }
@@ -48,7 +54,8 @@ if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     _snipMode = false
     _hasSnips = false
+    _zenMode = false
     _listeners.clear()
-    _snapshot = { snipMode: false, hasSnips: false }
+    _snapshot = { snipMode: false, hasSnips: false, zenMode: false }
   })
 }

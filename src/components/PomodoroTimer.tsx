@@ -213,6 +213,33 @@ function resetTimer() {
   notify()
 }
 
+function skipPhase() {
+  stopInterval()
+  const cfg = readConfig()
+  if (_state.phase === 'work') {
+    const isLong = cfg.longBreakInterval > 0 && (_state.completedPomodoros + 1) % cfg.longBreakInterval === 0
+    const breakDuration = isLong ? cfg.breakMinutes * cfg.longBreakMultiplier : cfg.breakMinutes
+    _state = {
+      ..._state,
+      running: false,
+      phase: 'break',
+      secondsLeft: breakDuration * 60,
+      completedPomodoros: _state.completedPomodoros + 1,
+      isLongBreak: isLong,
+      sessionStart: null,
+    }
+  } else {
+    _state = {
+      ..._state,
+      running: false,
+      phase: 'work',
+      secondsLeft: cfg.workMinutes * 60,
+      sessionStart: null,
+    }
+  }
+  notify()
+}
+
 function dismissOverlay() {
   _state = { ..._state, showOverlay: false, running: true }
   stopInterval()
@@ -355,20 +382,11 @@ export function PomodoroTimer({ zenMode, activeSlug, activeDirPath }: Props) {
     <>
       <div style={zenMode ? { display: 'none' } : undefined} className="flex items-center gap-1">
         <div className="mx-0.5 h-4 w-px bg-[#eee8d5] dark:bg-[#073642]" />
-        {/* Pomodoro count dots */}
+        {/* Pomodoro count */}
         {config.longBreakInterval > 0 && (
-          <div className="mr-0.5 flex items-center gap-0.5">
-            {Array.from({ length: config.longBreakInterval }).map((_, i) => (
-              <div
-                key={i}
-                className={`h-1.5 w-1.5 rounded-full ${
-                  i < timer.completedPomodoros
-                    ? 'bg-[#859900]'
-                    : 'bg-[#93a1a1]/30 dark:bg-[#586e75]/40'
-                }`}
-              />
-            ))}
-          </div>
+          <span className="mr-0.5 text-xs tabular-nums text-[#93a1a1] dark:text-[#586e75]">
+            {timer.completedPomodoros}/{config.longBreakInterval}
+          </span>
         )}
         {/* Timer display */}
         <button
@@ -387,11 +405,12 @@ export function PomodoroTimer({ zenMode, activeSlug, activeDirPath }: Props) {
             </svg>
           )}
           <span>{formatTime(timer.secondsLeft)}</span>
+          {(timer.running || timer.phase === 'break') && (
+            <span className="text-[10px] uppercase tracking-wide opacity-40">
+              {timer.phase === 'work' ? 'work' : 'break'}
+            </span>
+          )}
         </button>
-        {/* Phase label */}
-        <span className={`text-[10px] uppercase tracking-wide opacity-60 ${phaseColor}`}>
-          {timer.phase === 'work' ? 'work' : 'break'}
-        </span>
         {/* Config button */}
         <div className="relative" ref={popoverRef}>
           <button
@@ -407,7 +426,7 @@ export function PomodoroTimer({ zenMode, activeSlug, activeDirPath }: Props) {
           {popoverOpen && (
             <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-[#eee8d5] bg-[#fdf6e3] p-3 shadow-lg dark:border-[#073642] dark:bg-[#002b36]">
               <div className="mb-2 text-xs font-medium uppercase tracking-wide text-[#93a1a1] dark:text-[#657b83]">
-                Presets
+                Duration
               </div>
               <div className="mb-3 flex gap-1">
                 {(['25/5', '50/10'] as PomodoroPreset[]).map((p) => (
@@ -467,7 +486,10 @@ export function PomodoroTimer({ zenMode, activeSlug, activeDirPath }: Props) {
                 </div>
               )}
               <div className="mb-2 border-t border-[#eee8d5] pt-2 dark:border-[#073642]">
-                <label className="flex cursor-pointer items-center justify-between text-xs text-[#586e75] dark:text-[#93a1a1]">
+                <div className="mb-1 text-xs font-medium uppercase tracking-wide text-[#93a1a1] dark:text-[#657b83]">
+                  Notifications
+                </div>
+                <div className="flex cursor-pointer items-center justify-between text-xs text-[#586e75] dark:text-[#93a1a1]">
                   <span>Audio chime</span>
                   <button
                     onClick={handleToggleAudio}
@@ -485,16 +507,27 @@ export function PomodoroTimer({ zenMode, activeSlug, activeDirPath }: Props) {
                       }`}
                     />
                   </button>
-                </label>
+                </div>
               </div>
-              {timer.running && (
-                <button
-                  onClick={resetTimer}
-                  className="mt-1 w-full rounded px-2 py-1 text-xs text-[#dc322f] hover:bg-[#dc322f]/10"
-                >
-                  Reset timer
-                </button>
-              )}
+              <div className="border-t border-[#eee8d5] pt-2 dark:border-[#073642]">
+                <div className="mb-1 text-xs font-medium uppercase tracking-wide text-[#93a1a1] dark:text-[#657b83]">
+                  Timer
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={skipPhase}
+                    className="flex-1 rounded px-2 py-1 text-xs text-[#586e75] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
+                  >
+                    Skip
+                  </button>
+                  <button
+                    onClick={resetTimer}
+                    className="flex-1 rounded px-2 py-1 text-xs text-[#dc322f] hover:bg-[#dc322f]/10"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>

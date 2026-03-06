@@ -128,7 +128,7 @@ npx tsc --noEmit     # type-check
 
 # axiomatic-pdfium — DDD Dashboard
 
-> Cache iteration: 32
+> Cache iteration: 35
 
 ## Orchestrator Directive
 
@@ -137,7 +137,7 @@ Commands: /ddd-begin, /ddd-explore, /ddd-spec, /ddd-plan, /ddd-exec, /ddd-gate, 
 
 ## Phase & Iteration
 
-Phase: **exec** | Iteration: **32**
+Phase: **exec** | Iteration: **35**
 
 ## Active Traversals
 
@@ -158,8 +158,9 @@ None
 - `concept/fragment-009.md` — AI-enabled highlights (seeded from cl-006)
 - `concept/fragment-010.md` — Retroactive TDD adoption (seeded from cl-007)
 - `concept/fragment-011.md` — Pomodoro/timer feature (seeded from cl-008)
+- `concept/fragment-012.md` — Cycle 3: Pomodoro UX, Stats Page, Toolbar Buttons, Sidebar Navigation
 - `concept/explore-summary.md` — Explore phase synthesis (cycle 1 + 2)
-- `concept/atoms.yaml` — 58 atoms (49 cycle 1 + 9 cycle 2: 3 snippet, 3 testing, 3 pomodoro)
+- `concept/atoms.yaml` — 61 atoms (49 cycle 1 + 9 cycle 2 + 2 cycle 3 + 1 ProjectStateDir)
 
 ### Specs
 
@@ -196,6 +197,10 @@ None
 | task-014 | Rust unit tests for all mutating IPC commands | done (44 tests) |
 | task-015 | Vitest infrastructure and frontend tests | done (52 tests) |
 | task-016 | Playwright E2E infrastructure and happy-path tests | done (22 tests) |
+| task-017 | Fix Pomodoro Timer UX | done |
+| task-018 | Create /stats route and StatsPage | done |
+| task-019 | Surface palette commands as toolbar buttons | done |
+| task-020 | Persistent sidebar navigation | done |
 
 ## Open Clarifications
 
@@ -205,13 +210,11 @@ None
 
 ## Approval Status
 
-All 10 sub-specs approved (111 ACs, 58 atoms). Plan: **approved** (iter 30, 9 tasks). Exec phase active.
+All 10 sub-specs approved (119 ACs, 61 atoms). Plans: cycle 2 **approved** (iter 30, 9 tasks), cycle 3 **approved** (iter 34, 4 tasks). Exec phase active.
 
 ## Recent Decisions
 
-- [iter 28] Cross-spec coherence fixes: ac-033 completeness, ac-147 ZenMode, ac-148 config persistence, cross-book loop overlay constraint
-- [iter 29] Gate passed: spec → plan (111 ACs, 58 atoms, 10 specs approved)
-- [iter 29] Cycle 2 plan decomposition: brownfield gap analysis, 9 tasks in 3-layer DAG
-- [iter 30] Approved plan: 9 tasks (task-008..016), 35 ACs covered, critical path 008→009→010
-- [iter 31] Gate passed: plan → exec (9 pending tasks, entering cycle 2 implementation)
 - [iter 32] Exec batch: all 9 cycle 2 tasks completed (008–016). 44 Rust tests, 52 Vitest tests, 22 Playwright E2E tests all passing. Cycle 2 complete.
+- [iter 33] Rewind: exec → explore (cycle 3). fragment-012, 2 new atoms (Sidebar, StatsPage), spec amendments (ac-150..157)
+- [iter 34] Fast-forward: explore → exec (cycle 3). 4 tasks (task-017..020), TDD required
+- [iter 35] Exec batch: all 4 cycle 3 tasks completed (017–020). Red-green TDD. 75 Vitest tests, 44 Rust tests all passing. Cycle 3 complete.

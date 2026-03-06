@@ -5,7 +5,9 @@ import { OverviewPage } from './pages/OverviewPage'
 import { ReaderPage } from './pages/ReaderPage'
 import { LoopPage } from './pages/LoopPage'
 import { SnipsPage } from './pages/SnipsPage'
+import { StatsPage } from './pages/StatsPage'
 import { Titlebar } from './components/Titlebar'
+import { Sidebar } from './components/Sidebar'
 import { CommandPalette, type Command } from './components/CommandPalette'
 import { useTheme, setTheme } from './hooks/useTheme'
 import { registerPaletteToggle } from './lib/palette'
@@ -18,6 +20,7 @@ function Layout() {
   const navigate = useNavigate()
   const { theme } = useTheme()
   const isReader = location.pathname.startsWith('/read/')
+  const isLoop = location.pathname.startsWith('/loop/')
 
   useEffect(() => {
     invoke<string>('get_platform').then((p) => setIsLinux(p === 'linux'))
@@ -63,6 +66,11 @@ function Layout() {
         id: 'snips-page',
         label: 'Snips',
         action: () => navigate('/snips'),
+      },
+      {
+        id: 'stats-page',
+        label: 'Stats',
+        action: () => navigate('/stats'),
       },
     ]
 
@@ -137,12 +145,18 @@ function Layout() {
     <CommandPalette commands={commands} onClose={closePalette} />
   )
 
+  const sidebarCollapsed = isReader || isLoop
+  const sidebarZenMode = isReader && readerState.zenMode
+
   if (isLinux) {
     return (
       <div className="flex h-screen flex-col bg-[#fdf6e3] dark:bg-[#002b36]">
         {palette}
-        <div className="flex min-h-0 flex-1 flex-col">
-          <Outlet />
+        <div className="flex min-h-0 flex-1">
+          <Sidebar collapsed={sidebarCollapsed} zenMode={sidebarZenMode} />
+          <div className="flex min-h-0 flex-1 flex-col">
+            <Outlet />
+          </div>
         </div>
       </div>
     )
@@ -153,8 +167,11 @@ function Layout() {
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-[#fdf6e3] shadow-[0_1px_12px_rgba(0,0,0,0.2)] dark:bg-[#002b36] dark:shadow-[0_1px_12px_rgba(0,0,0,0.55)]">
         <Titlebar />
         {palette}
-        <div className="flex min-h-0 flex-1 flex-col">
-          <Outlet />
+        <div className="flex min-h-0 flex-1">
+          <Sidebar collapsed={sidebarCollapsed} zenMode={sidebarZenMode} />
+          <div className="flex min-h-0 flex-1 flex-col">
+            <Outlet />
+          </div>
         </div>
       </div>
     </div>
@@ -169,6 +186,7 @@ export const router = createBrowserRouter([
       { path: '/read/:slug', element: <ReaderPage /> },
       { path: '/loop/:slug', element: <LoopPage /> },
       { path: '/snips', element: <SnipsPage /> },
+      { path: '/stats', element: <StatsPage /> },
     ],
   },
 ])

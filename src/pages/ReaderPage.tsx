@@ -18,7 +18,7 @@ import { OutlineSidebar } from '../components/OutlineSidebar'
 import { HighlightsPanel } from '../components/HighlightsPanel'
 import { BookmarksPanel } from '../components/BookmarksPanel'
 import { SnipBanner } from '../components/SnipBanner'
-import { setReaderSnipMode, setReaderHasSnips } from '../lib/readerState'
+import { setReaderSnipMode, setReaderHasSnips, setReaderZenMode } from '../lib/readerState'
 
 export function ReaderPage() {
   const { slug } = useParams<{ slug: string }>()
@@ -47,8 +47,9 @@ export function ReaderPage() {
 
   useEffect(() => { setReaderHasSnips(snips.length > 0) }, [snips])
   useEffect(() => { setReaderSnipMode(snipMode) }, [snipMode])
+  useEffect(() => { setReaderZenMode(zenMode) }, [zenMode])
   useEffect(() => {
-    return () => { setReaderSnipMode(false); setReaderHasSnips(false) }
+    return () => { setReaderSnipMode(false); setReaderHasSnips(false); setReaderZenMode(false) }
   }, [])
 
   // Register this book as a tab
@@ -416,6 +417,11 @@ export function ReaderPage() {
           zenMode={zenMode}
           activeSlug={slug}
           activeDirPath={book.dir_path}
+          snipMode={snipMode}
+          onToggleSnipMode={() => { if (snipModeRef.current) exitSnipMode(); else enterSnipMode() }}
+          hasSnips={snips.length > 0}
+          onLoopSorted={() => slug && navigate(`/loop/${slug}?mode=sorted`)}
+          onLoopShuffled={() => slug && navigate(`/loop/${slug}?mode=shuffled`)}
         />
       </div>
       {!zenMode && (

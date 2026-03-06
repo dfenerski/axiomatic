@@ -20,7 +20,6 @@ import { TagManager } from '../components/TagManager'
 import { TagAssigner } from '../components/TagAssigner'
 import { SlugMigrationDialog } from '../components/SlugMigrationDialog'
 import type { OrphanCandidate } from '../components/SlugMigrationDialog'
-import { StudyStats } from '../components/StudyStats'
 
 interface MenuState {
   x: number
@@ -359,7 +358,6 @@ export function OverviewPage() {
           <p className="text-[#657b83] dark:text-[#93a1a1]">Loading...</p>
         </div>
       ) : (<>
-      <StudyStats dirPaths={dirPaths} />
       {starredBooks.length > 0 && remaining > 0 && (
         <section>
           <h2 className="px-4 pt-4 text-sm font-medium text-[#657b83] dark:text-[#93a1a1]">

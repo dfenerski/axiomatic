@@ -26,6 +26,11 @@ interface Props {
   zenMode?: boolean
   activeSlug?: string
   activeDirPath?: string
+  snipMode?: boolean
+  onToggleSnipMode?: () => void
+  hasSnips?: boolean
+  onLoopSorted?: () => void
+  onLoopShuffled?: () => void
 }
 
 export function ReaderToolbar({
@@ -47,6 +52,11 @@ export function ReaderToolbar({
   zenMode,
   activeSlug,
   activeDirPath,
+  snipMode,
+  onToggleSnipMode,
+  hasSnips,
+  onLoopSorted,
+  onLoopShuffled,
 }: Props) {
   const canZoomOut = zoom > MIN_ZOOM
   const canZoomIn = zoom < MAX_ZOOM
@@ -189,6 +199,50 @@ export function ReaderToolbar({
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
           </button>
+          {onToggleSnipMode && (
+            <button
+              onClick={onToggleSnipMode}
+              className={snipMode ? 'shrink-0 rounded p-1.5 bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : iconBtnClass}
+              aria-label={snipMode ? 'Stop snipping' : 'Snip mode'}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="6" cy="6" r="3" />
+                <circle cx="6" cy="18" r="3" />
+                <line x1="20" y1="4" x2="8.12" y2="15.88" />
+                <line x1="14.47" y1="14.48" x2="20" y2="20" />
+                <line x1="8.12" y1="8.12" x2="12" y2="12" />
+              </svg>
+            </button>
+          )}
+          {hasSnips && onLoopSorted && onLoopShuffled && (
+            <>
+              <button
+                onClick={onLoopSorted}
+                className={iconBtnClass}
+                aria-label="Loop sorted"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="17 1 21 5 17 9" />
+                  <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                  <polyline points="7 23 3 19 7 15" />
+                  <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                </svg>
+              </button>
+              <button
+                onClick={onLoopShuffled}
+                className={iconBtnClass}
+                aria-label="Loop shuffled"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="16 3 21 3 21 8" />
+                  <line x1="4" y1="20" x2="21" y2="3" />
+                  <polyline points="21 16 21 21 16 21" />
+                  <line x1="15" y1="15" x2="21" y2="21" />
+                  <line x1="4" y1="4" x2="9" y2="9" />
+                </svg>
+              </button>
+            </>
+          )}
           <PomodoroTimer zenMode={zenMode ?? false} activeSlug={activeSlug} activeDirPath={activeDirPath} />
           <button
             onClick={togglePalette}
