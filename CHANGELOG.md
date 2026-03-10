@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.2.0
+## v0.0.6
 
 ### Command palette
 
