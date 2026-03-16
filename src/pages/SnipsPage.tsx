@@ -9,7 +9,8 @@ import type { SnipWithDir } from '../hooks/useSnips'
 import { useSnipTagDefs } from '../hooks/useSnipTagDefs'
 import { togglePalette } from '../lib/palette'
 import { LoopCarousel } from '../components/LoopCarousel'
-import { SnipImage } from '../components/SnipImage'
+import { PomodoroTimer } from '../components/PomodoroTimer'
+import { ZoomableSnipImage } from '../components/ZoomableSnipImage'
 import { SnipTagManager } from '../components/SnipTagManager'
 import { SnipTagAssigner } from '../components/SnipTagAssigner'
 
@@ -42,10 +43,12 @@ export function SnipsPage() {
   const [dirFilter, setDirFilter] = useState<string>('all')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [tagDropdownOpen, setTagDropdownOpen] = useState(false)
+  const [tagSearch, setTagSearch] = useState('')
   const [loopOpen, setLoopOpen] = useState(false)
   const [loopShuffled, setLoopShuffled] = useState(true)
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
+  const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
@@ -162,8 +165,10 @@ export function SnipsPage() {
   useEffect(() => {
     if (!tagDropdownOpen) return
     const handleClick = (e: MouseEvent) => {
-      if (tagDropdownRef.current && !tagDropdownRef.current.contains(e.target as Node))
+      if (tagDropdownRef.current && !tagDropdownRef.current.contains(e.target as Node)) {
         setTagDropdownOpen(false)
+        setTagSearch('')
+      }
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
@@ -311,7 +316,17 @@ export function SnipsPage() {
             </svg>
           </button>
           {tagDropdownOpen && uniqueTags.length > 0 && (
-            <div className="absolute left-0 top-8 z-30 max-h-48 min-w-[160px] overflow-y-auto rounded-md border border-[#eee8d5] bg-[#fdf6e3] py-1 shadow-lg dark:border-[#073642] dark:bg-[#073642]">
+            <div className="absolute left-0 top-8 z-30 w-56 rounded-md border border-[#eee8d5] bg-[#fdf6e3] py-1 shadow-lg dark:border-[#073642] dark:bg-[#073642]">
+              <div className="px-2 pb-1">
+                <input
+                  type="text"
+                  value={tagSearch}
+                  onChange={(e) => setTagSearch(e.target.value)}
+                  placeholder="Search tags..."
+                  className="h-6 w-full rounded border border-[#93a1a1]/30 bg-transparent px-2 text-xs text-[#073642] outline-none focus:border-[#268bd2] dark:text-[#eee8d5] dark:focus:border-[#268bd2]"
+                  onKeyDown={(e) => e.stopPropagation()}
+                />
+              </div>
               {selectedTags.length > 0 && (
                 <button
                   onClick={() => setSelectedTags([])}
@@ -320,23 +335,27 @@ export function SnipsPage() {
                   Clear all
                 </button>
               )}
-              {uniqueTags.map((tag) => (
-                <button
-                  key={tag}
-                  onClick={() => toggleTagFilter(tag)}
-                  className="flex w-full items-center gap-2 px-3 py-1 text-left text-xs text-[#586e75] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#002b36]"
-                >
-                  <span className={`inline-block h-3 w-3 shrink-0 rounded-sm border ${
-                    selectedTags.includes(tag)
-                      ? 'border-[#268bd2] bg-[#268bd2]'
-                      : 'border-[#93a1a1]/50 bg-transparent'
-                  }`} />
-                  {tagColorMap.has(tag) && (
-                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: tagColorMap.get(tag) }} />
-                  )}
-                  {tag}
-                </button>
-              ))}
+              <div className="max-h-40 overflow-y-auto">
+                {uniqueTags
+                  .filter((tag) => !tagSearch.trim() || tag.toLowerCase().includes(tagSearch.trim().toLowerCase()))
+                  .map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => toggleTagFilter(tag)}
+                    className="flex w-full items-center gap-2 px-3 py-1 text-left text-xs text-[#586e75] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#002b36]"
+                  >
+                    <span className={`inline-block h-3 w-3 shrink-0 rounded-sm border ${
+                      selectedTags.includes(tag)
+                        ? 'border-[#268bd2] bg-[#268bd2]'
+                        : 'border-[#93a1a1]/50 bg-transparent'
+                    }`} />
+                    {tagColorMap.has(tag) && (
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: tagColorMap.get(tag) }} />
+                    )}
+                    {tag}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -365,8 +384,24 @@ export function SnipsPage() {
           Manage tags
         </button>
 
+        {/* Select mode toggle */}
+        <button
+          onClick={() => { setSelectMode((v) => !v); if (selectMode) setSelectedIds(new Set()) }}
+          aria-label="Toggle select mode"
+          className={`h-7 shrink-0 rounded border px-2 text-xs ${
+            selectMode
+              ? 'border-[#268bd2] bg-[#268bd2]/10 text-[#268bd2] dark:border-[#268bd2]/50'
+              : 'border-[#93a1a1]/30 bg-[#fdf6e3] text-[#586e75] hover:border-[#268bd2] dark:border-[#073642] dark:bg-[#073642] dark:text-[#93a1a1] dark:hover:border-[#268bd2]'
+          }`}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 11 12 14 22 4" />
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+          </svg>
+        </button>
+
         {/* Selection toolbar */}
-        {selectedIds.size > 0 && (
+        {selectMode && selectedIds.size > 0 && (
           <>
             <div className="mx-1 h-4 w-px bg-[#93a1a1]/30 dark:bg-[#073642]" />
             <span className="text-xs text-[#586e75] dark:text-[#93a1a1]">
@@ -445,17 +480,19 @@ export function SnipsPage() {
           <table className="w-full text-left text-sm">
             <thead className="sticky top-0 z-10 bg-[#eee8d5] text-xs font-medium uppercase tracking-wider text-[#93a1a1] dark:bg-[#073642] dark:text-[#586e75]">
               <tr>
-                <th className="w-8 px-2 py-2">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.size === filteredSnips.length && filteredSnips.length > 0}
-                    ref={(el) => {
-                      if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filteredSnips.length
-                    }}
-                    onChange={selectAll}
-                    className="h-4 w-4 accent-[#268bd2]"
-                  />
-                </th>
+                {selectMode && (
+                  <th className="w-8 px-2 py-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size === filteredSnips.length && filteredSnips.length > 0}
+                      ref={(el) => {
+                        if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filteredSnips.length
+                      }}
+                      onChange={selectAll}
+                      className="h-4 w-4 accent-[#268bd2]"
+                    />
+                  </th>
+                )}
                 <th className="px-4 py-2">Label</th>
                 <th className="px-4 py-2">Source</th>
                 <th className="px-4 py-2 text-right">Page</th>
@@ -471,6 +508,7 @@ export function SnipsPage() {
                   <tr
                     data-row-index={i}
                     onClick={(e) => {
+                      if (!selectMode) return
                       if ((e.target as HTMLElement).closest('input[type="checkbox"]')) return
                       if ((e.target as HTMLElement).closest('input[type="text"]')) return
                       if (renamingId) return
@@ -485,6 +523,7 @@ export function SnipsPage() {
                           : 'hover:bg-[#eee8d5]/50 dark:hover:bg-[#073642]/50'
                     }`}
                   >
+                    {selectMode && (
                     <td className="w-8 px-2 py-2">
                       <input
                         type="checkbox"
@@ -493,6 +532,7 @@ export function SnipsPage() {
                         className="h-4 w-4 accent-[#268bd2]"
                       />
                     </td>
+                    )}
                     <td
                       className="px-4 py-2 text-[#073642] dark:text-[#eee8d5]"
                       onDoubleClick={(e) => {
@@ -554,12 +594,9 @@ export function SnipsPage() {
                   </tr>
                   {expandedIds.has(snip.id) && (
                     <tr className="border-b border-[#eee8d5] bg-[#eee8d5]/30 dark:border-[#073642] dark:bg-[#073642]/30">
-                      <td colSpan={6} className="px-4 py-4">
+                      <td colSpan={selectMode ? 6 : 5} className="px-4 py-4">
                         <div className="flex gap-6">
-                          <SnipImage
-                            snip={snip}
-                            className="max-h-[200px] max-w-[300px] rounded border border-[#eee8d5] object-contain dark:border-[#073642]"
-                          />
+                          <ZoomableSnipImage snip={snip} maxHeight="200px" />
                           <div className="flex flex-col gap-2 text-sm text-[#586e75] dark:text-[#93a1a1]">
                             <p><span className="font-medium">Source:</span> {slugToTitle[snip.slug] ?? snip.slug}</p>
                             <p><span className="font-medium">Page:</span> {snip.page + 1}</p>
@@ -618,11 +655,33 @@ export function SnipsPage() {
             await deleteSnip(contextMenu.snip.dirPath, contextMenu.snip.id)
             setContextMenu(null)
           }}
+          bulkSnips={selectedIds.has(contextMenu.snip.id) && selectedIds.size > 1 ? selectedSnips : null}
           onAddTag={async (tag) => {
-            await addTag(contextMenu.snip.dirPath, contextMenu.snip.id, tag)
+            if (selectedIds.has(contextMenu.snip.id) && selectedIds.size > 1) {
+              // Bulk tag: group by dirPath
+              const byDir = new Map<string, string[]>()
+              for (const s of selectedSnips) {
+                const ids = byDir.get(s.dirPath) ?? []
+                ids.push(s.id)
+                byDir.set(s.dirPath, ids)
+              }
+              for (const [dirPath, ids] of byDir) await bulkAddTag(dirPath, ids, tag)
+            } else {
+              await addTag(contextMenu.snip.dirPath, contextMenu.snip.id, tag)
+            }
           }}
           onRemoveTag={async (tag) => {
-            await removeTag(contextMenu.snip.dirPath, contextMenu.snip.id, tag)
+            if (selectedIds.has(contextMenu.snip.id) && selectedIds.size > 1) {
+              const byDir = new Map<string, string[]>()
+              for (const s of selectedSnips) {
+                const ids = byDir.get(s.dirPath) ?? []
+                ids.push(s.id)
+                byDir.set(s.dirPath, ids)
+              }
+              for (const [dirPath, ids] of byDir) await bulkRemoveTag(dirPath, ids, tag)
+            } else {
+              await removeTag(contextMenu.snip.dirPath, contextMenu.snip.id, tag)
+            }
           }}
           onClose={() => setContextMenu(null)}
         />
@@ -663,6 +722,9 @@ export function SnipsPage() {
       {/* Loop overlay */}
       {loopOpen && (
         <div className="absolute inset-0 z-40 flex flex-col bg-[#fdf6e3] dark:bg-[#002b36]">
+          <div className="flex shrink-0 items-center justify-end border-b border-[#eee8d5] bg-[#fdf6e3] px-3 dark:border-[#073642] dark:bg-[#002b36]">
+            <PomodoroTimer zenMode={false} />
+          </div>
           <LoopCarousel
             snips={filteredSnips}
             xp={0}
@@ -677,6 +739,9 @@ export function SnipsPage() {
       {/* View carousel overlay */}
       {viewStartIndex !== null && (
         <div className="absolute inset-0 z-40 flex flex-col bg-[#fdf6e3] dark:bg-[#002b36]">
+          <div className="flex shrink-0 items-center justify-end border-b border-[#eee8d5] bg-[#fdf6e3] px-3 dark:border-[#073642] dark:bg-[#002b36]">
+            <PomodoroTimer zenMode={false} />
+          </div>
           <LoopCarousel
             snips={filteredSnips}
             xp={0}
@@ -694,13 +759,14 @@ export function SnipsPage() {
 
 // Extracted context menu with tag checkboxes, rename, delete
 function ContextMenu({
-  x, y, snip, tagDefs,
+  x, y, snip, tagDefs, bulkSnips,
   onView, onExpand, onNavigate, onRename, onDelete, onAddTag, onRemoveTag, onClose,
 }: {
   x: number
   y: number
   snip: SnipWithDir
   tagDefs: { name: string; color: string }[]
+  bulkSnips: SnipWithDir[] | null
   onView: () => void
   onExpand: () => void
   onNavigate: () => void
@@ -769,7 +835,7 @@ function ContextMenu({
       {tagDefs.length > 0 && (
         <div className="border-t border-[#eee8d5] py-1 dark:border-[#073642]">
           <p className="px-3 py-0.5 text-[10px] font-medium uppercase tracking-wider text-[#93a1a1] dark:text-[#657b83]">
-            Tags
+            {bulkSnips ? `Tag ${bulkSnips.length} snips` : 'Tags'}
           </p>
           {tagDefs.map((def) => {
             const assigned = snipTags.has(def.name)

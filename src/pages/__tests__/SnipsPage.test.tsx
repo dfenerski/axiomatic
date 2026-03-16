@@ -45,9 +45,11 @@ vi.mock('../../hooks/useSnips', async () => {
   }
 })
 
+const stubTagDefs = { defs: [] as { name: string; color: string }[] }
+
 vi.mock('../../hooks/useSnipTagDefs', () => ({
   useSnipTagDefs: () => ({
-    defs: [],
+    defs: stubTagDefs.defs,
     createDef: vi.fn(),
     deleteDef: vi.fn(),
     renameDef: vi.fn(),
@@ -58,6 +60,16 @@ vi.mock('../../hooks/useSnipTagDefs', () => ({
 
 vi.mock('../../components/PomodoroTimer', () => ({
   PomodoroTimer: () => <div data-testid="pomodoro-timer" />,
+}))
+
+vi.mock('../../components/ZoomableSnipImage', () => ({
+  ZoomableSnipImage: () => (
+    <div data-testid="zoomable-snip-image">
+      <button aria-label="Zoom in" />
+      <button aria-label="Zoom out" />
+      <button aria-label="Reset zoom" />
+    </div>
+  ),
 }))
 
 // LoopCarousel is complex and unnecessary for these tests
@@ -98,50 +110,55 @@ function renderPage(snips: SnipWithDir[] = [makeSnip()]) {
 beforeEach(() => {
   mockNavigate.mockClear()
   stubAllSnips.snips = []
+  stubTagDefs.defs = []
 })
 
 describe('SnipsPage', () => {
-  it('renders snip rows with larger checkboxes (h-4 w-4)', () => {
+  it('checkboxes are hidden by default', () => {
     renderPage()
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0)
+  })
+
+  it('Select button toggles checkboxes on', () => {
+    renderPage()
+    fireEvent.click(screen.getByLabelText('Toggle select mode'))
 
     // Per-row checkbox
     const tbody = screen.getByText('Definition 1.1').closest('tbody')!
     const rowCheckbox = within(tbody).getAllByRole('checkbox')[0]
-    expect(rowCheckbox.className).toContain('h-4')
-    expect(rowCheckbox.className).toContain('w-4')
+    expect(rowCheckbox).toBeInTheDocument()
 
     // Header select-all checkbox
     const thead = screen.getByText('Label').closest('thead')!
     const headerCheckbox = within(thead).getByRole('checkbox')
-    expect(headerCheckbox.className).toContain('h-4')
-    expect(headerCheckbox.className).toContain('w-4')
+    expect(headerCheckbox).toBeInTheDocument()
   })
 
-  it('clicking a row selects it instead of navigating', () => {
+  it('clicking a row selects it when select mode is on', () => {
     renderPage()
+    fireEvent.click(screen.getByLabelText('Toggle select mode'))
 
     const row = screen.getByText('Definition 1.1').closest('tr')!
-
-    // Row should not have cursor-pointer
-    expect(row.className).not.toContain('cursor-pointer')
-
-    // Click the row
     fireEvent.click(row)
 
-    // Should show "1 selected" in toolbar (selection, not navigation)
     expect(screen.getByText('1 selected')).toBeInTheDocument()
-
-    // Should NOT have navigated
     expect(mockNavigate).not.toHaveBeenCalled()
 
-    // The checkbox should be checked
     const tbody = screen.getByText('Definition 1.1').closest('tbody')!
     const checkbox = within(tbody).getAllByRole('checkbox')[0] as HTMLInputElement
     expect(checkbox.checked).toBe(true)
   })
 
+  it('clicking a row does NOT select when select mode is off', () => {
+    renderPage()
+    const row = screen.getByText('Definition 1.1').closest('tr')!
+    fireEvent.click(row)
+    expect(screen.queryByText('1 selected')).not.toBeInTheDocument()
+  })
+
   it('clicking a selected row deselects it', () => {
     renderPage()
+    fireEvent.click(screen.getByLabelText('Toggle select mode'))
 
     const row = screen.getByText('Definition 1.1').closest('tr')!
 
@@ -161,6 +178,7 @@ describe('SnipsPage', () => {
       makeSnip({ id: 's3', label: 'Snip C', created_at: '2024-06-01T00:00:00Z' }),
     ]
     renderPage(snips)
+    fireEvent.click(screen.getByLabelText('Toggle select mode'))
 
     const rowA = screen.getByText('Snip A').closest('tr')!
     const rowC = screen.getByText('Snip C').closest('tr')!
@@ -172,6 +190,51 @@ describe('SnipsPage', () => {
     // Shift-click last row
     fireEvent.click(rowC, { shiftKey: true })
     expect(screen.getByText('3 selected')).toBeInTheDocument()
+  })
+
+  it('context menu tag applies to full selection when multiple selected', async () => {
+    stubTagDefs.defs = [{ name: 'important', color: '#dc322f' }]
+    const snips = [
+      makeSnip({ id: 's1', label: 'Snip A', created_at: '2024-06-03T00:00:00Z' }),
+      makeSnip({ id: 's2', label: 'Snip B', created_at: '2024-06-02T00:00:00Z' }),
+    ]
+    renderPage(snips)
+
+    // Enable select mode and select both
+    fireEvent.click(screen.getByLabelText('Toggle select mode'))
+    const rowA = screen.getByText('Snip A').closest('tr')!
+    const rowB = screen.getByText('Snip B').closest('tr')!
+    fireEvent.click(rowA)
+    fireEvent.click(rowB)
+    expect(screen.getByText('2 selected')).toBeInTheDocument()
+
+    // Right-click on one of the selected rows — should apply to both
+    fireEvent.contextMenu(rowA)
+
+    // Context menu should indicate bulk mode
+    expect(screen.getByText('Tag 2 snips')).toBeInTheDocument()
+  })
+
+  it('tag filter dropdown has a search input', () => {
+    renderPage([makeSnip({ tags: ['algebra', 'analysis'] })])
+    // Open tag dropdown
+    fireEvent.click(screen.getByText('All tags'))
+    expect(screen.getByPlaceholderText('Search tags...')).toBeInTheDocument()
+  })
+
+  it('tag filter dropdown search filters tags', () => {
+    renderPage([makeSnip({ tags: ['algebra', 'analysis', 'topology'] })])
+    fireEvent.click(screen.getByText('All tags'))
+
+    const searchInput = screen.getByPlaceholderText('Search tags...')
+    const dropdown = searchInput.closest('[class*="absolute"]')!
+
+    fireEvent.change(searchInput, { target: { value: 'alg' } })
+
+    // Only 'algebra' should be visible within the dropdown
+    expect(within(dropdown as HTMLElement).getByText('algebra')).toBeInTheDocument()
+    expect(within(dropdown as HTMLElement).queryByText('analysis')).not.toBeInTheDocument()
+    expect(within(dropdown as HTMLElement).queryByText('topology')).not.toBeInTheDocument()
   })
 
   it('context menu shows "Expand" and "Open in reader" options', () => {
@@ -199,6 +262,18 @@ describe('SnipsPage', () => {
     expect(screen.getByText('Collapse')).toBeInTheDocument()
     expect(screen.getByText(/Page:/)).toBeInTheDocument()
     expect(screen.getByText(/Source:/)).toBeInTheDocument()
+  })
+
+  it('expanded row shows zoom controls', () => {
+    renderPage()
+
+    const row = screen.getByText('Definition 1.1').closest('tr')!
+    fireEvent.contextMenu(row)
+    fireEvent.click(screen.getByText('Expand'))
+
+    expect(screen.getByLabelText('Zoom in')).toBeInTheDocument()
+    expect(screen.getByLabelText('Zoom out')).toBeInTheDocument()
+    expect(screen.getByLabelText('Reset zoom')).toBeInTheDocument()
   })
 
   it('collapse button removes the expanded row', () => {
@@ -271,9 +346,23 @@ describe('SnipsPage', () => {
     )).toBeInTheDocument()
   })
 
-  it('does not render PomodoroTimer in toolbar', () => {
+  it('does not render PomodoroTimer in main toolbar', () => {
     renderPage()
     expect(screen.queryByTestId('pomodoro-timer')).toBeNull()
+  })
+
+  it('renders PomodoroTimer in loop overlay', () => {
+    renderPage()
+    fireEvent.click(screen.getByText('Loop sorted'))
+    expect(screen.getByTestId('pomodoro-timer')).toBeInTheDocument()
+  })
+
+  it('renders PomodoroTimer in view overlay', () => {
+    renderPage()
+    const row = screen.getByText('Definition 1.1').closest('tr')!
+    fireEvent.contextMenu(row)
+    fireEvent.click(screen.getByText('View'))
+    expect(screen.getByTestId('pomodoro-timer')).toBeInTheDocument()
   })
 
   it('context menu shows View option', () => {
@@ -310,6 +399,7 @@ describe('SnipsPage', () => {
 
   it('row click does not toggle selection while renaming', () => {
     renderPage()
+    fireEvent.click(screen.getByLabelText('Toggle select mode'))
 
     // Double-click the label cell to start rename
     const labelCell = screen.getByText('Definition 1.1')

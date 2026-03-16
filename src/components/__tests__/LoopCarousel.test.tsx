@@ -21,6 +21,14 @@ function makeSnip(overrides: Partial<Snip> = {}): Snip {
   }
 }
 
+// Stub ResizeObserver for jsdom
+class MockResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+globalThis.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver
+
 beforeEach(() => {
   vi.restoreAllMocks()
 })
@@ -172,6 +180,63 @@ describe('LoopCarousel', () => {
     expect(screen.queryByText('Reveal')).not.toBeInTheDocument()
   })
 
+  it('Space toggles reveal on and off', async () => {
+    const snips = [makeSnip({ label: 'Toggle Card' })]
+    render(
+      <LoopCarousel
+        snips={snips}
+        xp={0}
+        onIncrementXp={vi.fn().mockResolvedValue(0)}
+        onExit={vi.fn()}
+        shuffled={false}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Toggle Card')).toBeInTheDocument()
+    })
+
+    // Initially hidden
+    expect(screen.getByText('Reveal')).toBeInTheDocument()
+
+    // Space reveals
+    fireEvent.keyDown(window, { key: ' ' })
+    expect(screen.queryByText('Reveal')).not.toBeInTheDocument()
+
+    // Space hides again
+    fireEvent.keyDown(window, { key: ' ' })
+    expect(screen.getByText('Reveal')).toBeInTheDocument()
+  })
+
+  it('Space toggles in viewMode too', async () => {
+    const snips = [makeSnip({ label: 'View Card' })]
+    render(
+      <LoopCarousel
+        snips={snips}
+        xp={0}
+        onIncrementXp={vi.fn().mockResolvedValue(0)}
+        onExit={vi.fn()}
+        shuffled={false}
+        viewMode={true}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('View Card')).toBeInTheDocument()
+    })
+
+    // viewMode starts revealed (no Reveal button)
+    expect(screen.queryByText('Reveal')).not.toBeInTheDocument()
+
+    // Space hides
+    fireEvent.keyDown(window, { key: ' ' })
+    expect(screen.getByText('Reveal')).toBeInTheDocument()
+
+    // Space reveals again
+    fireEvent.keyDown(window, { key: ' ' })
+    expect(screen.queryByText('Reveal')).not.toBeInTheDocument()
+  })
+
   it('Escape key calls onExit', async () => {
     const onExit = vi.fn()
     const snips = [makeSnip()]
@@ -270,6 +335,191 @@ describe('LoopCarousel', () => {
       expect(screen.getByText('Second')).toBeInTheDocument()
     })
     expect(screen.getByText('2 / 3')).toBeInTheDocument()
+  })
+
+  it('renders zoom controls after reveal', async () => {
+    const snips = [makeSnip()]
+    render(
+      <LoopCarousel
+        snips={snips}
+        xp={0}
+        onIncrementXp={vi.fn().mockResolvedValue(0)}
+        onExit={vi.fn()}
+        shuffled={false}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Definition 1.1')).toBeInTheDocument()
+    })
+
+    // Reveal first — zoom controls are part of ZoomableSnipImage
+    fireEvent.click(screen.getByText('Reveal'))
+
+    expect(screen.getByLabelText('Zoom in')).toBeInTheDocument()
+    expect(screen.getByLabelText('Zoom out')).toBeInTheDocument()
+    expect(screen.getByLabelText('Reset zoom')).toBeInTheDocument()
+  })
+
+  it('zoom in increases scale on the snip container', async () => {
+    const snips = [makeSnip()]
+    render(
+      <LoopCarousel
+        snips={snips}
+        xp={0}
+        onIncrementXp={vi.fn().mockResolvedValue(0)}
+        onExit={vi.fn()}
+        shuffled={false}
+        viewMode={true}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Definition 1.1')).toBeInTheDocument()
+    })
+
+    const zoomIn = screen.getByLabelText('Zoom in')
+    fireEvent.click(zoomIn)
+
+    const container = screen.getByTestId('snip-zoom-container')
+    expect(container.style.transform).toBe('scale(1.25)')
+  })
+
+  it('Ctrl+= zooms in', async () => {
+    const snips = [makeSnip()]
+    render(
+      <LoopCarousel
+        snips={snips}
+        xp={0}
+        onIncrementXp={vi.fn().mockResolvedValue(0)}
+        onExit={vi.fn()}
+        shuffled={false}
+        viewMode={true}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Definition 1.1')).toBeInTheDocument()
+    })
+
+    fireEvent.keyDown(window, { key: '=', ctrlKey: true })
+
+    const container = screen.getByTestId('snip-zoom-container')
+    expect(container.style.transform).toBe('scale(1.25)')
+  })
+
+  it('Ctrl+- zooms out', async () => {
+    const snips = [makeSnip()]
+    render(
+      <LoopCarousel
+        snips={snips}
+        xp={0}
+        onIncrementXp={vi.fn().mockResolvedValue(0)}
+        onExit={vi.fn()}
+        shuffled={false}
+        viewMode={true}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Definition 1.1')).toBeInTheDocument()
+    })
+
+    fireEvent.keyDown(window, { key: '-', ctrlKey: true })
+
+    const container = screen.getByTestId('snip-zoom-container')
+    expect(container.style.transform).toBe('scale(0.75)')
+  })
+
+  it('Ctrl+0 resets zoom', async () => {
+    const snips = [makeSnip()]
+    render(
+      <LoopCarousel
+        snips={snips}
+        xp={0}
+        onIncrementXp={vi.fn().mockResolvedValue(0)}
+        onExit={vi.fn()}
+        shuffled={false}
+        viewMode={true}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Definition 1.1')).toBeInTheDocument()
+    })
+
+    // Zoom in first
+    fireEvent.keyDown(window, { key: '=', ctrlKey: true })
+    const container = screen.getByTestId('snip-zoom-container')
+    expect(container.style.transform).toBe('scale(1.25)')
+
+    // Reset
+    fireEvent.keyDown(window, { key: '0', ctrlKey: true })
+    expect(container.style.transform).toBe('scale(1)')
+  })
+
+  it('Ctrl+wheel zooms in and out', async () => {
+    const snips = [makeSnip()]
+    render(
+      <LoopCarousel
+        snips={snips}
+        xp={0}
+        onIncrementXp={vi.fn().mockResolvedValue(0)}
+        onExit={vi.fn()}
+        shuffled={false}
+        viewMode={true}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Definition 1.1')).toBeInTheDocument()
+    })
+
+    const container = screen.getByTestId('snip-zoom-container')
+
+    // Ctrl+wheel up (deltaY < 0) → zoom in
+    fireEvent.wheel(window, { deltaY: -100, ctrlKey: true })
+    expect(container.style.transform).toBe('scale(1.25)')
+
+    // Ctrl+wheel down (deltaY > 0) → zoom out
+    fireEvent.wheel(window, { deltaY: 100, ctrlKey: true })
+    expect(container.style.transform).toBe('scale(1)')
+  })
+
+  it('zoom resets on snip change', async () => {
+    const snips = [
+      makeSnip({ id: 's1', label: 'Card 1' }),
+      makeSnip({ id: 's2', label: 'Card 2' }),
+    ]
+    render(
+      <LoopCarousel
+        snips={snips}
+        xp={0}
+        onIncrementXp={vi.fn().mockResolvedValue(0)}
+        onExit={vi.fn()}
+        shuffled={false}
+        viewMode={true}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Card 1')).toBeInTheDocument()
+    })
+
+    // Zoom in
+    fireEvent.click(screen.getByLabelText('Zoom in'))
+    const container = screen.getByTestId('snip-zoom-container')
+    expect(container.style.transform).toBe('scale(1.25)')
+
+    // Advance to next snip
+    fireEvent.keyDown(window, { key: 'j' })
+
+    await waitFor(() => {
+      expect(screen.getByText('Card 2')).toBeInTheDocument()
+    })
+
+    // Zoom should reset
+    expect(container.style.transform).toBe('scale(1)')
   })
 
   it('XP counter updates after navigation', async () => {

@@ -132,15 +132,20 @@ describe('OverviewPage toolbar nav icons', () => {
     expect(snipsLink.querySelector('circle')).toBeNull()
   })
 
-  it('Snips icon appears before the filter button', () => {
+  it('Snips icon appears between Projects and Tags buttons', () => {
     renderPage()
+    const projectsBtn = screen.getByLabelText('Projects')
     const snipsLink = screen.getByLabelText('Snips')
-    const filterBtn = screen.getByLabelText('Filter books')
-    const toolbar = snipsLink.closest('div')!
-    const children = Array.from(toolbar.children)
-    const snipsIdx = children.indexOf(snipsLink)
-    const filterIdx = children.indexOf(filterBtn)
-    expect(snipsIdx).toBeLessThan(filterIdx)
+    const tagsBtn = screen.getByLabelText('Manage tags')
+
+    // All three should be in DOM order: Projects, Snips, Tags
+    const all = document.querySelectorAll('[aria-label]')
+    const order = Array.from(all)
+    const pIdx = order.indexOf(projectsBtn)
+    const sIdx = order.indexOf(snipsLink)
+    const tIdx = order.indexOf(tagsBtn)
+    expect(pIdx).toBeLessThan(sIdx)
+    expect(sIdx).toBeLessThan(tIdx)
   })
 })
 

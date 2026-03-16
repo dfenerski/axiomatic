@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Snip } from '../hooks/useSnips'
-import { SnipImage } from './SnipImage'
+import { ZoomableSnipImage } from './ZoomableSnipImage'
 
 interface LoopCarouselProps {
   snips: Snip[]
@@ -63,9 +63,6 @@ export function LoopCarousel({
   const advance = useCallback(async (snip: Snip) => {
     if (viewMode) return
     if (onIncrementXpForSnip) {
-      // Cross-book mode: increment XP for the specific snip's slug/dir.
-      // The snip object is actually a SnipWithDir at runtime when this
-      // callback is provided.
       const withDir = snip as Snip & { dirPath?: string }
       if (withDir.dirPath) {
         await onIncrementXpForSnip(withDir.dirPath, snip.slug)
@@ -95,9 +92,8 @@ export function LoopCarousel({
 
       switch (e.key) {
         case ' ':
-          if (viewMode) break
           e.preventDefault()
-          handleReveal()
+          setRevealed((r) => !r)
           break
         case 'j':
         case 'ArrowRight':
@@ -117,7 +113,7 @@ export function LoopCarousel({
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleReveal, handleNext, handlePrev, onExit])
+  }, [handleNext, handlePrev, onExit])
 
   if (!current) {
     return (
@@ -148,7 +144,7 @@ export function LoopCarousel({
       </div>
 
       {/* Card */}
-      <div className="flex w-full max-w-2xl flex-col items-center gap-4 rounded-lg border border-[#eee8d5] bg-white p-8 shadow-sm dark:border-[#073642] dark:bg-[#073642]">
+      <div className={`flex w-full flex-col items-center gap-4 rounded-lg border border-[#eee8d5] bg-white p-8 shadow-sm dark:border-[#073642] dark:bg-[#073642] ${revealed ? 'max-w-[90vw]' : 'max-w-2xl'}`}>
         <h2 className="text-center text-2xl font-semibold text-[#657b83] dark:text-[#93a1a1]">
           {current.label}
         </h2>
@@ -157,7 +153,7 @@ export function LoopCarousel({
         </p>
 
         {revealed ? (
-          <SnipImage snip={current} />
+          <ZoomableSnipImage snip={current} maxHeight="80vh" globalShortcuts />
         ) : (
           <button
             onClick={handleReveal}

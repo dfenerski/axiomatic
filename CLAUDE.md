@@ -219,6 +219,11 @@ None
 | ID | Topic | Status |
 |----|-------|--------|
 | cl-006 | AI-enabled highlights | **open** (deferred) |
+| cl-009 | Vim navigation consistency (overview, snip overlay, loop overlay) | **open** (deferred) |
+| cl-010 | Zoom consistency (overview thumbnails, snip overlay, loop carousel) | **done** (iter 35) |
+| cl-011 | Toggleable select mode (text selection vs vim nav) | **done** (iter 35) |
+| cl-012 | Zoomable snips (pinch/scroll zoom on snip regions) | **done** (iter 35) |
+| cl-013 | Pomodoro/learning tools missing from SnipsPage loop overlay (overlay bypasses LoopPage infrastructure) | **done** (iter 35) |
 
 ## Approval Status
 

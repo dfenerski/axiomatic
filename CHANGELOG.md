@@ -1,5 +1,46 @@
 # Changelog
 
+## v0.0.8
+
+### Snip loop overlay parity
+
+- **PomodoroTimer in SnipsPage overlays** — both loop and view carousel overlays now render the Pomodoro timer above the carousel, matching the dedicated `/loop/:slug` page.
+
+### Zoomable snip images
+
+- **New `ZoomableSnipImage` component** — reusable wrapper around `SnipImage` with zoom +/- buttons, Ctrl+=/Ctrl+-/Ctrl+0 keyboard shortcuts, and Ctrl+wheel zoom.
+- **LoopCarousel zoom** — zoom controls in the carousel navigation bar; zoom resets on snip change. Card expands to `max-w-[90vw]` when revealed to fit natural snip size.
+- **SnipsPage expanded row zoom** — inline preview now uses `ZoomableSnipImage` instead of a bare fixed-size `SnipImage`.
+- **Original-size reveal** — revealed snips render at their native canvas pixel dimensions, capped at 80vh with overflow scroll.
+- **ResizeObserver fix** — observer stays alive across canvas resizes, fixing a race condition where navigating to a new snip showed a cut-off image on first reveal.
+
+### Toggleable select mode (snip table)
+
+- **Select mode toggle** — checkbox icon button in the SnipsPage toolbar toggles selection checkboxes on/off. Checkboxes hidden by default; turning select mode off clears all selections.
+
+### Bulk tag via context menu
+
+- **Multi-select + right-click + tag** — when right-clicking a snip that's part of a multi-selection, tag checkboxes apply to all selected snips (grouped by directory for the bulk IPC call). Header shows "Tag N snips".
+
+### Searchable tag filter
+
+- **Wider dropdown** — tag filter dropdown widened to `w-56`.
+- **Search input** — text filter at the top of the dropdown; filters tags by substring match. Clears on dropdown close.
+
+### Space toggle in carousel
+
+- **Space as global expand toggler** — Space now toggles reveal/hide in both loop and view modes (previously only revealed, and was a no-op in view mode).
+
+### Overview toolbar layout
+
+- **Snips button moved** — now between the directory explorer and tag manager buttons (left side of toolbar), instead of the right side next to filter.
+
+### Tests
+
+- **New**: `ZoomableSnipImage` ResizeObserver race condition tests, `LoopCarousel` zoom controls + keyboard/wheel shortcuts + Space toggle tests, `SnipsPage` select mode + bulk tag + searchable dropdown tests.
+- **Updated**: `OverviewPage` snips button position test reflects new toolbar order.
+- **332 Vitest tests**, 44 Rust tests — all passing.
+
 ## v0.0.7
 
 ### Navigation overhaul
