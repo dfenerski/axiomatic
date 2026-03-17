@@ -72,10 +72,30 @@ vi.mock('../../components/ZoomableSnipImage', () => ({
   ),
 }))
 
+vi.mock('../../components/NotesPanel', () => ({
+  NotesPanel: (props: { slug: string; page: number }) => (
+    <div data-testid="notes-panel" data-slug={props.slug} data-page={props.page} />
+  ),
+}))
+
+const mockEnsureNote = vi.fn()
+const mockSetNote = vi.fn()
+vi.mock('../../hooks/useNotes', () => ({
+  useNotes: () => ({ ensureNote: mockEnsureNote, setNote: mockSetNote }),
+  useNoteContent: () => undefined,
+}))
+
+vi.mock('../../components/SnipTagManager', () => ({
+  SnipTagManager: () => <div data-testid="snip-tag-manager" />,
+}))
+
 // LoopCarousel is complex and unnecessary for these tests
 vi.mock('../../components/LoopCarousel', () => ({
   LoopCarousel: (props: { shuffled: boolean; viewMode?: boolean }) => <div data-testid="loop-carousel" data-shuffled={String(props.shuffled)} data-view-mode={props.viewMode ? 'true' : undefined} />,
 }))
+
+// jsdom lacks scrollIntoView
+Element.prototype.scrollIntoView = vi.fn()
 
 import { SnipsPage } from '../SnipsPage'
 
@@ -406,18 +426,131 @@ describe('SnipsPage', () => {
     expect(carousel).toHaveAttribute('data-shuffled', 'true')
   })
 
-  it('snips are sorted ascending by page number', () => {
+  it('Ctrl+H navigates to library', () => {
+    renderPage()
+    fireEvent.keyDown(window, { key: 'h', ctrlKey: true })
+    expect(mockNavigate).toHaveBeenCalledWith('/')
+  })
+
+  it('l expands the highlighted row', () => {
+    renderPage()
+    // Select the first row with j
+    fireEvent.keyDown(window, { key: 'j' })
+    // Press l to expand
+    fireEvent.keyDown(window, { key: 'l' })
+    expect(screen.getByText('Collapse')).toBeInTheDocument()
+    expect(screen.getByText('Go to page')).toBeInTheDocument()
+  })
+
+  it('h collapses the highlighted row', () => {
+    renderPage()
+    // Select and expand
+    fireEvent.keyDown(window, { key: 'j' })
+    fireEvent.keyDown(window, { key: 'l' })
+    expect(screen.getByText('Collapse')).toBeInTheDocument()
+    // Press h to collapse
+    fireEvent.keyDown(window, { key: 'h' })
+    expect(screen.queryByText('Collapse')).not.toBeInTheDocument()
+  })
+
+  it('Ctrl+L opens notes panel for highlighted snip', () => {
+    renderPage()
+    expect(screen.queryByTestId('notes-panel')).not.toBeInTheDocument()
+    // Select the first row
+    fireEvent.keyDown(window, { key: 'j' })
+    // Open notes
+    fireEvent.keyDown(window, { key: 'l', ctrlKey: true })
+    const panel = screen.getByTestId('notes-panel')
+    expect(panel).toHaveAttribute('data-slug', 'algebra')
+    expect(panel).toHaveAttribute('data-page', '4')
+  })
+
+  it('Ctrl+H closes notes panel when open', () => {
+    renderPage()
+    // Select row and open notes
+    fireEvent.keyDown(window, { key: 'j' })
+    fireEvent.keyDown(window, { key: 'l', ctrlKey: true })
+    expect(screen.getByTestId('notes-panel')).toBeInTheDocument()
+    // Ctrl+H closes notes instead of navigating
+    fireEvent.keyDown(window, { key: 'h', ctrlKey: true })
+    expect(screen.queryByTestId('notes-panel')).not.toBeInTheDocument()
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+
+  it('Escape closes notes panel', () => {
+    renderPage()
+    fireEvent.keyDown(window, { key: 'j' })
+    fireEvent.keyDown(window, { key: 'l', ctrlKey: true })
+    expect(screen.getByTestId('notes-panel')).toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByTestId('notes-panel')).not.toBeInTheDocument()
+  })
+
+  it('Escape closes tag manager', () => {
+    renderPage()
+    fireEvent.click(screen.getByText('Manage tags'))
+    expect(screen.getByTestId('snip-tag-manager')).toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByTestId('snip-tag-manager')).not.toBeInTheDocument()
+  })
+
+  it('Escape closes tag manager when focus is in an input', () => {
+    renderPage()
+    fireEvent.click(screen.getByText('Manage tags'))
+    expect(screen.getByTestId('snip-tag-manager')).toBeInTheDocument()
+    const tm = screen.getByTestId('snip-tag-manager')
+    const input = document.createElement('input')
+    tm.appendChild(input)
+    input.focus()
+    // Fire on input so e.target.tagName === 'INPUT'
+    fireEvent.keyDown(input, { key: 'Escape', bubbles: true })
+    expect(screen.queryByTestId('snip-tag-manager')).not.toBeInTheDocument()
+  })
+
+  it('Escape closes notes when focus is in tag manager input', () => {
+    renderPage()
+    fireEvent.keyDown(window, { key: 'j' })
+    fireEvent.keyDown(window, { key: 'l', ctrlKey: true })
+    expect(screen.getByTestId('notes-panel')).toBeInTheDocument()
+    // Focus an input inside the tag manager stub
+    fireEvent.click(screen.getByText('Manage tags'))
+    const tm = screen.getByTestId('snip-tag-manager')
+    const input = document.createElement('input')
+    tm.appendChild(input)
+    input.focus()
+    // Fire on the input so e.target.tagName === 'INPUT'
+    fireEvent.keyDown(input, { key: 'Escape', bubbles: true })
+    // Notes should close (highest priority pane)
+    expect(screen.queryByTestId('notes-panel')).not.toBeInTheDocument()
+  })
+
+  it('snips are sorted by timestamp then slug then page', () => {
     const snips = [
-      makeSnip({ id: 's1', label: 'Page 10 snip', page: 10, created_at: '2024-06-01T00:00:00Z' }),
-      makeSnip({ id: 's2', label: 'Page 2 snip', page: 2, created_at: '2024-06-02T00:00:00Z' }),
-      makeSnip({ id: 's3', label: 'Page 5 snip', page: 5, created_at: '2024-06-03T00:00:00Z' }),
+      makeSnip({ id: 's1', label: 'Late snip',  slug: 'algebra', page: 1,  created_at: '2024-06-03T00:00:00Z' }),
+      makeSnip({ id: 's2', label: 'Early snip', slug: 'algebra', page: 10, created_at: '2024-06-01T00:00:00Z' }),
+      makeSnip({ id: 's3', label: 'Mid snip',   slug: 'algebra', page: 5,  created_at: '2024-06-02T00:00:00Z' }),
     ]
     renderPage(snips)
 
     const rows = screen.getAllByRole('row').slice(1) // skip header
-    expect(rows[0]).toHaveTextContent('Page 2 snip')
-    expect(rows[1]).toHaveTextContent('Page 5 snip')
-    expect(rows[2]).toHaveTextContent('Page 10 snip')
+    // Timestamp is primary: early < mid < late regardless of page
+    expect(rows[0]).toHaveTextContent('Early snip')
+    expect(rows[1]).toHaveTextContent('Mid snip')
+    expect(rows[2]).toHaveTextContent('Late snip')
+  })
+
+  it('snips with same timestamp sort by slug then page', () => {
+    const snips = [
+      makeSnip({ id: 's1', label: 'B page 5', slug: 'topology', page: 5, created_at: '2024-06-01T00:00:00Z' }),
+      makeSnip({ id: 's2', label: 'A page 3', slug: 'algebra',  page: 3, created_at: '2024-06-01T00:00:00Z' }),
+      makeSnip({ id: 's3', label: 'A page 1', slug: 'algebra',  page: 1, created_at: '2024-06-01T00:00:00Z' }),
+    ]
+    renderPage(snips)
+
+    const rows = screen.getAllByRole('row').slice(1)
+    expect(rows[0]).toHaveTextContent('A page 1')
+    expect(rows[1]).toHaveTextContent('A page 3')
+    expect(rows[2]).toHaveTextContent('B page 5')
   })
 
   it('row click does not toggle selection while renaming', () => {

@@ -53,6 +53,45 @@ export function OverviewPage() {
   const orphanCheckDone = useRef(false)
 
   useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Escape always closes panes regardless of focus
+      if (e.key === 'Escape') {
+        const closed =
+          (explorerOpen && (setExplorerOpen(false), true)) ||
+          (tagManagerOpen && (setTagManagerOpen(false), true)) ||
+          (filterOpen && (setFilterOpen(false), setFilterQuery(''), true))
+        if (closed) e.preventDefault()
+        return
+      }
+
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+
+      if (!e.ctrlKey) return
+      switch (e.key) {
+        case 's':
+          e.preventDefault()
+          navigate('/snips')
+          break
+        case 'd':
+          e.preventDefault()
+          setExplorerOpen((v) => !v)
+          break
+        case 't':
+          e.preventDefault()
+          setTagManagerOpen((v) => !v)
+          break
+        case 'f':
+          e.preventDefault()
+          setFilterOpen((v) => !v)
+          break
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [navigate, explorerOpen, tagManagerOpen, filterOpen])
+
+  useEffect(() => {
     if (loading || textbooks.length === 0 || orphanCheckDone.current) return
     orphanCheckDone.current = true
     invoke<OrphanCandidate[]>('detect_orphaned_slugs')

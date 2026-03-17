@@ -4,9 +4,10 @@ import { MemoryRouter } from 'react-router-dom'
 
 vi.mock('../../lib/palette', () => ({ togglePalette: vi.fn() }))
 
+const mockNavigate = vi.fn()
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
-  return { ...actual, useNavigate: () => vi.fn() }
+  return { ...actual, useNavigate: () => mockNavigate }
 })
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -89,6 +90,14 @@ vi.mock('../../components/SyncStatus', () => ({
   SyncStatus: () => null,
 }))
 
+vi.mock('../../components/DirectoryExplorer', () => ({
+  DirectoryExplorer: () => <div data-testid="directory-explorer" />,
+}))
+
+vi.mock('../../components/TagManager', () => ({
+  TagManager: () => <div data-testid="tag-manager" />,
+}))
+
 import { OverviewPage } from '../OverviewPage'
 
 const STORAGE_KEY = 'axiomatic:section-collapse'
@@ -109,6 +118,7 @@ function renderPage() {
 }
 
 beforeEach(() => {
+  mockNavigate.mockClear()
   resetCollapseState()
 })
 
@@ -242,5 +252,84 @@ describe('OverviewPage collapsible sections', () => {
       // Adequate vertical padding
       expect(cls).toContain('py-2')
     }
+  })
+})
+
+describe('OverviewPage keyboard shortcuts', () => {
+  it('Ctrl+S navigates to snips page', () => {
+    renderPage()
+    fireEvent.keyDown(window, { key: 's', ctrlKey: true })
+    expect(mockNavigate).toHaveBeenCalledWith('/snips')
+  })
+
+  it('Ctrl+D opens directory explorer', () => {
+    renderPage()
+    expect(screen.queryByTestId('directory-explorer')).not.toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'd', ctrlKey: true })
+    expect(screen.getByTestId('directory-explorer')).toBeInTheDocument()
+  })
+
+  it('Ctrl+T opens tag manager', () => {
+    renderPage()
+    expect(screen.queryByTestId('tag-manager')).not.toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 't', ctrlKey: true })
+    expect(screen.getByTestId('tag-manager')).toBeInTheDocument()
+  })
+
+  it('Ctrl+F opens search filter', () => {
+    renderPage()
+    expect(screen.queryByPlaceholderText('Filter books…')).not.toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'f', ctrlKey: true })
+    expect(screen.getByPlaceholderText('Filter books…')).toBeInTheDocument()
+  })
+
+  it('Escape closes directory explorer', () => {
+    renderPage()
+    fireEvent.keyDown(window, { key: 'd', ctrlKey: true })
+    expect(screen.getByTestId('directory-explorer')).toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByTestId('directory-explorer')).not.toBeInTheDocument()
+  })
+
+  it('Escape closes tag manager', () => {
+    renderPage()
+    fireEvent.keyDown(window, { key: 't', ctrlKey: true })
+    expect(screen.getByTestId('tag-manager')).toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByTestId('tag-manager')).not.toBeInTheDocument()
+  })
+
+  it('Escape closes search filter', () => {
+    renderPage()
+    fireEvent.keyDown(window, { key: 'f', ctrlKey: true })
+    expect(screen.getByPlaceholderText('Filter books…')).toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByPlaceholderText('Filter books…')).not.toBeInTheDocument()
+  })
+
+  it('Escape closes directory explorer when focus is in an input', () => {
+    renderPage()
+    fireEvent.keyDown(window, { key: 'd', ctrlKey: true })
+    expect(screen.getByTestId('directory-explorer')).toBeInTheDocument()
+    // Create and focus an input inside the explorer
+    const explorer = screen.getByTestId('directory-explorer')
+    const input = document.createElement('input')
+    explorer.appendChild(input)
+    input.focus()
+    // Fire Escape on the input so e.target.tagName === 'INPUT'
+    fireEvent.keyDown(input, { key: 'Escape', bubbles: true })
+    expect(screen.queryByTestId('directory-explorer')).not.toBeInTheDocument()
+  })
+
+  it('Escape closes tag manager when focus is in an input', () => {
+    renderPage()
+    fireEvent.keyDown(window, { key: 't', ctrlKey: true })
+    expect(screen.getByTestId('tag-manager')).toBeInTheDocument()
+    const tm = screen.getByTestId('tag-manager')
+    const input = document.createElement('input')
+    tm.appendChild(input)
+    input.focus()
+    fireEvent.keyDown(input, { key: 'Escape', bubbles: true })
+    expect(screen.queryByTestId('tag-manager')).not.toBeInTheDocument()
   })
 })

@@ -110,7 +110,7 @@ export function SnipTagManager({ defs, anchorRef, onCreate, onDelete, onRename, 
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') commitRename(def.name)
                   if (e.key === 'Escape') setEditingName(null)
-                  e.stopPropagation()
+                  if (e.key !== 'Escape') e.stopPropagation()
                 }}
                 className="min-w-0 flex-1 rounded border border-[#268bd2] bg-transparent px-1 text-sm outline-none"
               />
@@ -146,7 +146,7 @@ export function SnipTagManager({ defs, anchorRef, onCreate, onDelete, onRename, 
           onChange={(e) => setNewName(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') handleCreate()
-            e.stopPropagation()
+            if (e.key !== 'Escape') e.stopPropagation()
           }}
           placeholder="New tag…"
           className="h-7 w-full rounded border border-[#93a1a1] bg-[#fdf6e3] px-2 text-sm text-[#073642] outline-none focus:border-blue-400 dark:border-[#073642] dark:bg-[#002b36] dark:text-[#eee8d5] dark:focus:border-[#268bd2]"

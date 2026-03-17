@@ -2,13 +2,16 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api/core'
+import type { EditorView } from '@codemirror/view'
 import { useDirectories } from '../hooks/useDirectories'
 import { useTextbooks } from '../hooks/useTextbooks'
 import { useAllSnips } from '../hooks/useSnips'
 import type { SnipWithDir } from '../hooks/useSnips'
 import { useSnipTagDefs } from '../hooks/useSnipTagDefs'
+import { useNotes, useNoteContent } from '../hooks/useNotes'
 import { togglePalette } from '../lib/palette'
 import { LoopCarousel } from '../components/LoopCarousel'
+import { NotesPanel } from '../components/NotesPanel'
 import { PomodoroTimer } from '../components/PomodoroTimer'
 import { ZoomableSnipImage } from '../components/ZoomableSnipImage'
 import { SnipTagManager } from '../components/SnipTagManager'
@@ -66,11 +69,15 @@ export function SnipsPage() {
   const [tagAssignerOpen, setTagAssignerOpen] = useState(false)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [viewStartIndex, setViewStartIndex] = useState<number | null>(null)
+  const [notesOpen, setNotesOpen] = useState(false)
 
   const searchRef = useRef<HTMLInputElement>(null)
   const tableRef = useRef<HTMLDivElement>(null)
   const tagDropdownRef = useRef<HTMLDivElement>(null)
   const tagManagerBtnRef = useRef<HTMLButtonElement>(null)
+  const editorRef = useRef<EditorView | null>(null)
+
+  const { ensureNote, setNote } = useNotes()
 
   const loading = booksLoading || snipsLoading
 
@@ -97,8 +104,16 @@ export function SnipsPage() {
       const q = search.trim().toLowerCase()
       result = result.filter((s) => s.label.toLowerCase().includes(q))
     }
-    return [...result].sort((a, b) => a.page - b.page || a.created_at.localeCompare(b.created_at))
+    return [...result].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.slug.localeCompare(b.slug) || a.page - b.page)
   }, [snips, dirFilter, selectedTags, search])
+
+  const highlightedSnip = selectedIndex >= 0 ? filteredSnips[selectedIndex] : undefined
+  const noteContent = useNoteContent(highlightedSnip?.slug, highlightedSnip?.page ?? 0)
+
+  useEffect(() => {
+    if (highlightedSnip && notesOpen) ensureNote(highlightedSnip.slug, highlightedSnip.page)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- slug+page are the meaningful deps, not the full object
+  }, [highlightedSnip?.slug, highlightedSnip?.page, notesOpen, ensureNote])
 
   // Clamp selectedIndex when filtered rows change
   useEffect(() => {
@@ -129,10 +144,47 @@ export function SnipsPage() {
   useEffect(() => {
     if (loopOpen || viewStartIndex !== null) return
     const handler = (e: KeyboardEvent) => {
+      // Escape always closes panes regardless of focus
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        if (notesOpen) setNotesOpen(false)
+        else if (tagManagerOpen) setTagManagerOpen(false)
+        else if (tagAssignerOpen) setTagAssignerOpen(false)
+        else if (selectedIds.size > 0) setSelectedIds(new Set())
+        else navigate('/')
+        return
+      }
+
+      // Ctrl+L: toggle notes panel for highlighted snip
+      if (e.ctrlKey && e.key === 'l') {
+        e.preventDefault()
+        setNotesOpen((v) => {
+          if (!v && selectedIndex >= 0) {
+            const snip = filteredSnips[selectedIndex]
+            if (snip) ensureNote(snip.slug, snip.page)
+            setTimeout(() => editorRef.current?.focus(), 50)
+          }
+          return !v
+        })
+        return
+      }
+
+      // Ctrl+H: close notes if open, else navigate to library
+      if (e.ctrlKey && e.key === 'h') {
+        e.preventDefault()
+        if (notesOpen) {
+          setNotesOpen(false)
+        } else {
+          navigate('/')
+        }
+        return
+      }
+
       const tag = (e.target as HTMLElement).tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      if ((e.target as HTMLElement).closest?.('.cm-editor')) return
       const count = filteredSnips.length
-      if (count === 0 && e.key !== 'Escape' && e.key !== '/') return
+      if (count === 0 && e.key !== '/') return
 
       switch (e.key) {
         case 'j': case 'ArrowDown':
@@ -142,6 +194,26 @@ export function SnipsPage() {
         case 'k': case 'ArrowUp':
           e.preventDefault()
           setSelectedIndex((prev) => prev <= 0 ? prev : prev - 1)
+          break
+        case 'l':
+          if (selectedIndex >= 0 && selectedIndex < count) {
+            e.preventDefault()
+            setExpandedIds((prev) => {
+              const next = new Set(prev)
+              next.add(filteredSnips[selectedIndex].id)
+              return next
+            })
+          }
+          break
+        case 'h':
+          if (selectedIndex >= 0 && selectedIndex < count) {
+            e.preventDefault()
+            setExpandedIds((prev) => {
+              const next = new Set(prev)
+              next.delete(filteredSnips[selectedIndex].id)
+              return next
+            })
+          }
           break
         case 'Enter':
           if (selectedIndex >= 0 && selectedIndex < count) {
@@ -153,16 +225,11 @@ export function SnipsPage() {
           e.preventDefault()
           searchRef.current?.focus()
           break
-        case 'Escape':
-          e.preventDefault()
-          if (selectedIds.size > 0) setSelectedIds(new Set())
-          else navigate('/')
-          break
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [filteredSnips, selectedIndex, navigateToSnip, navigate, loopOpen, viewStartIndex, selectedIds.size])
+  }, [filteredSnips, selectedIndex, navigateToSnip, navigate, loopOpen, viewStartIndex, selectedIds.size, notesOpen, tagManagerOpen, tagAssignerOpen, ensureNote])
 
   // Scroll selected row into view
   useEffect(() => {
@@ -476,7 +543,8 @@ export function SnipsPage() {
         </button>
       </div>
 
-      {/* Table */}
+      {/* Table + Notes */}
+      <div className="flex min-h-0 flex-1">
       <div ref={tableRef} className="min-h-0 flex-1 overflow-y-auto">
         {filteredSnips.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-[#93a1a1] dark:text-[#657b83]">
@@ -636,6 +704,17 @@ export function SnipsPage() {
             </tbody>
           </table>
         )}
+      </div>
+
+      {notesOpen && highlightedSnip && (
+        <NotesPanel
+          slug={highlightedSnip.slug}
+          page={highlightedSnip.page}
+          content={noteContent}
+          onUpdate={setNote}
+          externalEditorRef={editorRef}
+        />
+      )}
       </div>
 
       {/* Context menu */}

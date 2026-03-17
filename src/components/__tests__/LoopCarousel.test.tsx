@@ -1,6 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
+// Mock NotesPanel before importing LoopCarousel
+vi.mock('../NotesPanel', () => ({
+  NotesPanel: (props: { slug: string; page: number }) => (
+    <div data-testid="notes-panel" data-slug={props.slug} data-page={props.page} />
+  ),
+}))
+
+const mockEnsureNote = vi.fn()
+const mockSetNote = vi.fn()
+vi.mock('../../hooks/useNotes', () => ({
+  useNotes: () => ({ ensureNote: mockEnsureNote, setNote: mockSetNote }),
+  useNoteContent: () => undefined,
+}))
+
 import { LoopCarousel } from '../LoopCarousel'
 import type { Snip } from '../../hooks/useSnips'
 
@@ -548,6 +562,131 @@ describe('LoopCarousel', () => {
 
     await waitFor(() => {
       expect(screen.getByText('10 XP')).toBeInTheDocument()
+    })
+  })
+
+  it('notes panel hidden by default', async () => {
+    const snips = [makeSnip()]
+    render(
+      <LoopCarousel
+        snips={snips}
+        xp={0}
+        onIncrementXp={vi.fn().mockResolvedValue(0)}
+        onExit={vi.fn()}
+        shuffled={false}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Definition 1.1')).toBeInTheDocument()
+    })
+
+    expect(screen.queryByTestId('notes-panel')).not.toBeInTheDocument()
+  })
+
+  it('Ctrl+L opens notes panel for current snip', async () => {
+    const snips = [makeSnip({ slug: 'algebra', page: 3 })]
+    render(
+      <LoopCarousel
+        snips={snips}
+        xp={0}
+        onIncrementXp={vi.fn().mockResolvedValue(0)}
+        onExit={vi.fn()}
+        shuffled={false}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Definition 1.1')).toBeInTheDocument()
+    })
+
+    fireEvent.keyDown(window, { key: 'l', ctrlKey: true })
+
+    expect(screen.getByTestId('notes-panel')).toBeInTheDocument()
+    expect(screen.getByTestId('notes-panel')).toHaveAttribute('data-slug', 'algebra')
+    expect(screen.getByTestId('notes-panel')).toHaveAttribute('data-page', '3')
+  })
+
+  it('notes panel updates slug/page on snip navigation', async () => {
+    const snips = [
+      makeSnip({ id: 's1', slug: 'algebra', page: 1, label: 'Card 1' }),
+      makeSnip({ id: 's2', slug: 'algebra', page: 5, label: 'Card 2' }),
+    ]
+    render(
+      <LoopCarousel
+        snips={snips}
+        xp={0}
+        onIncrementXp={vi.fn().mockResolvedValue(0)}
+        onExit={vi.fn()}
+        shuffled={false}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Card 1')).toBeInTheDocument()
+    })
+
+    // Open notes
+    fireEvent.keyDown(window, { key: 'l', ctrlKey: true })
+    expect(screen.getByTestId('notes-panel')).toHaveAttribute('data-page', '1')
+
+    // Navigate to next snip
+    fireEvent.keyDown(window, { key: 'j' })
+    await waitFor(() => {
+      expect(screen.getByText('Card 2')).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId('notes-panel')).toHaveAttribute('data-page', '5')
+  })
+
+  it('Ctrl+H exits carousel when notes closed', async () => {
+    const onExit = vi.fn()
+    const snips = [makeSnip()]
+    render(
+      <LoopCarousel
+        snips={snips}
+        xp={0}
+        onIncrementXp={vi.fn().mockResolvedValue(0)}
+        onExit={onExit}
+        shuffled={false}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Definition 1.1')).toBeInTheDocument()
+    })
+
+    fireEvent.keyDown(window, { key: 'h', ctrlKey: true })
+    expect(onExit).toHaveBeenCalledTimes(1)
+  })
+
+  it('j/k still navigate when notes open but editor not focused', async () => {
+    const snips = [
+      makeSnip({ id: 's1', label: 'Card 1' }),
+      makeSnip({ id: 's2', label: 'Card 2' }),
+    ]
+    render(
+      <LoopCarousel
+        snips={snips}
+        xp={0}
+        onIncrementXp={vi.fn().mockResolvedValue(0)}
+        onExit={vi.fn()}
+        shuffled={false}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Card 1')).toBeInTheDocument()
+    })
+
+    // Open notes panel
+    fireEvent.keyDown(window, { key: 'l', ctrlKey: true })
+    expect(screen.getByTestId('notes-panel')).toBeInTheDocument()
+
+    // j should still advance (no .cm-editor is focused in test env)
+    fireEvent.keyDown(window, { key: 'j' })
+    await waitFor(() => {
+      expect(screen.getByText('Card 2')).toBeInTheDocument()
     })
   })
 })

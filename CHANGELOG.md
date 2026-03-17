@@ -1,5 +1,43 @@
 # Changelog
 
+## v0.0.9
+
+### Carousel notes panel
+
+- **Ctrl+L in carousel** — opens the notes panel for the current snip's original page and PDF, using the same `NotesPanel`/`useNotes` infrastructure as the reader. Notes panel appears as a 384px side pane on the right.
+- **Ctrl+H in carousel** — closes notes if the editor is focused; otherwise exits the carousel.
+- **Notes follow navigation** — slug/page update automatically when advancing through snips with j/k.
+- **`.cm-editor` focus guard** — j/k/Space/Escape no longer fire while typing in the notes editor.
+
+### Snip table vim keys
+
+- **l expands** — expands the inline preview for the highlighted row.
+- **h collapses** — collapses the highlighted row's preview.
+- **Ctrl+L opens notes** — toggles notes panel for the highlighted snip's page, with editor auto-focus.
+- **Ctrl+H closes notes / navigates back** — closes the notes panel if open; otherwise navigates to the library.
+
+### Overview page keyboard shortcuts
+
+- **Ctrl+S** — navigate to snips page.
+- **Ctrl+D** — toggle directory explorer.
+- **Ctrl+T** — toggle tag manager.
+- **Ctrl+F** — toggle search filter.
+
+### Global Escape closes panes
+
+- **Escape always works** — Escape now closes open panes (notes, tag manager, tag assigner, directory explorer, search filter) regardless of which element has focus. Previously, Escape was blocked when focus was in an `<input>`, `<textarea>`, or `.cm-editor`.
+- **Priority chain** — panes close in order: notes → tag manager → tag assigner → selection → navigate home.
+- **Tag manager inputs fixed** — "New tag" and rename inputs in `SnipTagManager` and `TagManager` no longer `stopPropagation` on Escape, so the document-level close handler fires correctly.
+
+### Snip table sort order
+
+- **Default sort: timestamp → slug → page** — snips are now sorted by creation timestamp first, then by document slug, then by page number (was page-only).
+
+### Tests
+
+- **New**: LoopCarousel notes panel tests (5), SnipsPage vim expand/collapse + notes + Escape tests (7), OverviewPage keyboard shortcut tests (7), SnipTagManager Escape test, TagManager Escape test.
+- **360 Vitest tests**, 44 Rust tests — all passing.
+
 ## v0.0.8
 
 ### Snip loop overlay parity

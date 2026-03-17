@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { EditorView } from '@codemirror/view'
 import type { Snip } from '../hooks/useSnips'
+import { useNotes, useNoteContent } from '../hooks/useNotes'
+import { NotesPanel } from './NotesPanel'
 import { ZoomableSnipImage } from './ZoomableSnipImage'
 
 interface LoopCarouselProps {
@@ -37,6 +40,10 @@ export function LoopCarousel({
   viewMode,
   initialIndex,
 }: LoopCarouselProps) {
+  const [notesOpen, setNotesOpen] = useState(false)
+  const editorRef = useRef<EditorView | null>(null)
+  const { ensureNote, setNote } = useNotes()
+
   // Stabilize order: only compute once when snips first arrive (avoids
   // re-shuffling mid-session if the snips array reference changes).
   const [orderedSnips, setOrderedSnips] = useState<Snip[]>([])
@@ -54,6 +61,11 @@ export function LoopCarousel({
   const [displayXp, setDisplayXp] = useState(xp)
 
   const current = orderedSnips[index]
+  const noteContent = useNoteContent(current?.slug, current?.page ?? 0)
+
+  useEffect(() => {
+    if (current) ensureNote(current.slug, current.page)
+  }, [current?.slug, current?.page, ensureNote])
 
   const handleReveal = useCallback(() => {
     if (revealed) return
@@ -87,8 +99,33 @@ export function LoopCarousel({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+L: toggle notes panel
+      if (e.ctrlKey && e.key === 'l') {
+        e.preventDefault()
+        setNotesOpen((v) => {
+          if (!v) {
+            setTimeout(() => editorRef.current?.focus(), 50)
+          }
+          return !v
+        })
+        return
+      }
+
+      // Ctrl+H: close notes if in editor, else exit carousel
+      if (e.ctrlKey && e.key === 'h') {
+        e.preventDefault()
+        const el = document.activeElement
+        if (el?.closest('.cm-editor')) {
+          ;(el as HTMLElement).blur()
+          setNotesOpen(false)
+        } else {
+          onExit()
+        }
+        return
+      }
+
       const el = document.activeElement
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.closest('.cm-editor'))) return
 
       switch (e.key) {
         case ' ':
@@ -124,61 +161,73 @@ export function LoopCarousel({
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-6 bg-[#fdf6e3] p-8 dark:bg-[#002b36]">
-      {/* Header */}
-      <div className="flex w-full max-w-2xl items-center justify-between">
-        <span className="text-sm text-[#93a1a1] dark:text-[#586e75]">
-          {index + 1} / {orderedSnips.length}
-        </span>
-        {!viewMode && !onIncrementXpForSnip && (
-          <span className="text-sm font-medium text-[#b58900]">
-            {displayXp} XP
+    <div className="flex flex-1">
+      <div className="flex flex-1 flex-col items-center justify-center gap-6 bg-[#fdf6e3] p-8 dark:bg-[#002b36]">
+        {/* Header */}
+        <div className="flex w-full max-w-2xl items-center justify-between">
+          <span className="text-sm text-[#93a1a1] dark:text-[#586e75]">
+            {index + 1} / {orderedSnips.length}
           </span>
-        )}
-        <button
-          onClick={onExit}
-          className="text-sm text-[#93a1a1] hover:text-[#657b83] dark:text-[#586e75] dark:hover:text-[#93a1a1]"
-        >
-          ESC to exit
-        </button>
-      </div>
-
-      {/* Card */}
-      <div className={`flex w-full flex-col items-center gap-4 rounded-lg border border-[#eee8d5] bg-white p-8 shadow-sm dark:border-[#073642] dark:bg-[#073642] ${revealed ? 'max-w-[90vw]' : 'max-w-2xl'}`}>
-        <h2 className="text-center text-2xl font-semibold text-[#657b83] dark:text-[#93a1a1]">
-          {current.label}
-        </h2>
-        <p className="text-sm text-[#93a1a1] dark:text-[#586e75]">
-          p. {current.page}
-        </p>
-
-        {revealed ? (
-          <ZoomableSnipImage snip={current} maxHeight="80vh" globalShortcuts />
-        ) : (
+          {!viewMode && !onIncrementXpForSnip && (
+            <span className="text-sm font-medium text-[#b58900]">
+              {displayXp} XP
+            </span>
+          )}
           <button
-            onClick={handleReveal}
-            className="mt-4 rounded-lg bg-[#268bd2] px-8 py-3 text-lg text-white transition-colors hover:bg-[#268bd2]/90"
+            onClick={onExit}
+            className="text-sm text-[#93a1a1] hover:text-[#657b83] dark:text-[#586e75] dark:hover:text-[#93a1a1]"
           >
-            Reveal
+            ESC to exit
           </button>
-        )}
+        </div>
+
+        {/* Card */}
+        <div className={`flex w-full flex-col items-center gap-4 rounded-lg border border-[#eee8d5] bg-white p-8 shadow-sm dark:border-[#073642] dark:bg-[#073642] ${revealed ? 'max-w-[90vw]' : 'max-w-2xl'}`}>
+          <h2 className="text-center text-2xl font-semibold text-[#657b83] dark:text-[#93a1a1]">
+            {current.label}
+          </h2>
+          <p className="text-sm text-[#93a1a1] dark:text-[#586e75]">
+            p. {current.page}
+          </p>
+
+          {revealed ? (
+            <ZoomableSnipImage snip={current} maxHeight="80vh" globalShortcuts />
+          ) : (
+            <button
+              onClick={handleReveal}
+              className="mt-4 rounded-lg bg-[#268bd2] px-8 py-3 text-lg text-white transition-colors hover:bg-[#268bd2]/90"
+            >
+              Reveal
+            </button>
+          )}
+        </div>
+
+        {/* Navigation */}
+        <div className="flex gap-4">
+          <button
+            onClick={handlePrev}
+            className="rounded px-4 py-2 text-sm text-[#657b83] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
+          >
+            Prev (k)
+          </button>
+          <button
+            onClick={handleNext}
+            className="rounded px-4 py-2 text-sm text-[#657b83] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
+          >
+            Next (j)
+          </button>
+        </div>
       </div>
 
-      {/* Navigation */}
-      <div className="flex gap-4">
-        <button
-          onClick={handlePrev}
-          className="rounded px-4 py-2 text-sm text-[#657b83] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
-        >
-          Prev (k)
-        </button>
-        <button
-          onClick={handleNext}
-          className="rounded px-4 py-2 text-sm text-[#657b83] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
-        >
-          Next (j)
-        </button>
-      </div>
+      {notesOpen && current && (
+        <NotesPanel
+          slug={current.slug}
+          page={current.page}
+          content={noteContent}
+          onUpdate={setNote}
+          externalEditorRef={editorRef}
+        />
+      )}
     </div>
   )
 }

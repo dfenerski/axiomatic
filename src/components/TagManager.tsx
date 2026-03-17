@@ -112,7 +112,7 @@ export function TagManager({ tags, anchorRef, onCreate, onDelete, onUpdateColor,
           onChange={(e) => setNewName(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') handleCreate()
-            e.stopPropagation()
+            if (e.key !== 'Escape') e.stopPropagation()
           }}
           placeholder="New tag…"
           className="h-7 w-full rounded border border-[#93a1a1] bg-[#fdf6e3] px-2 text-sm text-[#073642] outline-none focus:border-blue-400 dark:border-[#073642] dark:bg-[#002b36] dark:text-[#eee8d5] dark:focus:border-[#268bd2]"
