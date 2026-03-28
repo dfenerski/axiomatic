@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Snip } from '../hooks/useSnips'
 import { SnipImage } from './SnipImage'
+import { usePinchZoom } from '../hooks/usePinchZoom'
 
 const ZOOM_STEP = 0.25
 const ZOOM_MIN = 0.5
@@ -12,11 +13,14 @@ interface Props {
   maxHeight?: string
   /** Whether to bind Ctrl+=/- and Ctrl+wheel globally (only one instance should) */
   globalShortcuts?: boolean
+  /** Map of stored full_path → actual full_path for cross-device portability */
+  pathMap?: Map<string, string>
 }
 
-export function ZoomableSnipImage({ snip, maxHeight = '60vh', globalShortcuts = false }: Props) {
+export function ZoomableSnipImage({ snip, maxHeight = '60vh', globalShortcuts = false, pathMap }: Props) {
   const [zoom, setZoom] = useState(1)
   const [contentSize, setContentSize] = useState<{ w: number; h: number } | null>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   // Reset zoom on snip change
   useEffect(() => {
@@ -77,14 +81,26 @@ export function ZoomableSnipImage({ snip, maxHeight = '60vh', globalShortcuts = 
     return () => window.removeEventListener('wheel', onWheel, { capture: true })
   }, [globalShortcuts, handleZoomIn, handleZoomOut])
 
+  const handlePinchZoom = useCallback((scale: number) => {
+    setZoom(Math.min(Math.max(scale, ZOOM_MIN), ZOOM_MAX))
+  }, [])
+
+  const pinchOptions = useMemo(() => ({
+    onZoomChange: handlePinchZoom,
+    min: ZOOM_MIN,
+    max: ZOOM_MAX,
+  }), [handlePinchZoom])
+  usePinchZoom(scrollContainerRef, pinchOptions)
+
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex max-w-full flex-col gap-2">
       <div
+        ref={scrollContainerRef}
         className="overflow-auto"
         style={contentSize ? {
           maxWidth: '100%',
           maxHeight,
-          width: contentSize.w * zoom,
+          width: Math.min(contentSize.w * zoom, window.innerWidth - 32),
           height: contentSize.h * zoom,
         } : undefined}
       >
@@ -92,7 +108,7 @@ export function ZoomableSnipImage({ snip, maxHeight = '60vh', globalShortcuts = 
           data-testid="snip-zoom-container"
           style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}
         >
-          <SnipImage snip={snip} className="rounded border border-[#eee8d5] dark:border-[#073642]" onSize={handleSize} />
+          <SnipImage snip={snip} className="rounded border border-[#eee8d5] dark:border-[#073642]" onSize={handleSize} pathMap={pathMap} />
         </div>
       </div>
       <div className="flex items-center gap-1">

@@ -1,9 +1,13 @@
-const MAX_CONCURRENT = 3
+let maxConcurrent = 3
 let running = 0
 const queue: (() => void)[] = []
 
+export function setMaxConcurrent(n: number) {
+  maxConcurrent = n
+}
+
 function tryNext() {
-  while (running < MAX_CONCURRENT && queue.length > 0) {
+  while (running < maxConcurrent && queue.length > 0) {
     running++
     queue.shift()!()
   }
@@ -21,7 +25,7 @@ export function acquireSlot(): Promise<() => void> {
         tryNext()
       })
     }
-    if (running < MAX_CONCURRENT) {
+    if (running < maxConcurrent) {
       running++
       grant()
     } else {

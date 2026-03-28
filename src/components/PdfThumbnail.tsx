@@ -1,6 +1,8 @@
 import { invoke } from '@tauri-apps/api/core'
 import { memo, useEffect, useRef, useState } from 'react'
 import { acquireSlot } from '../lib/thumbnail-queue'
+import { buildPdfiumUrl } from '../lib/pdfium-url'
+import { getPlatformInfo } from '../lib/platform'
 
 interface Props {
   fullPath: string
@@ -54,8 +56,6 @@ export const PdfThumbnail = memo(function PdfThumbnail({ fullPath }: Props) {
     }
   }, [visible, fullPath])
 
-  const encodedPath = encodeURIComponent(fullPath)
-
   if (!visible || !cached) {
     return (
       <div ref={sentinelRef} className="relative aspect-[3/4] w-full overflow-hidden rounded bg-[#eee8d5] dark:bg-[#073642]">
@@ -69,7 +69,7 @@ export const PdfThumbnail = memo(function PdfThumbnail({ fullPath }: Props) {
   return (
     <div ref={sentinelRef} className="relative aspect-[3/4] w-full overflow-hidden rounded bg-[#eee8d5] dark:bg-[#073642]">
       <img
-        src={`pdfium://localhost/render?path=${encodedPath}&page=1&width=200&dpr=1`}
+        src={buildPdfiumUrl({ path: fullPath, page: 1, width: 200, dpr: 1 }, getPlatformInfo().os)}
         alt=""
         className="h-full w-full object-contain"
         draggable={false}

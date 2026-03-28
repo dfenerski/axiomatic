@@ -24,7 +24,6 @@ tauri-plugin-log = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 rusqlite = { version = "0.33", features = ["bundled"] }
-tauri-plugin-single-instance = "2"
 url = "2"
 walkdir = "2"
 pdfium-render = "0.8"
@@ -34,6 +33,10 @@ tokio = { version = "1", features = ["rt"] }
 uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 crossbeam-channel = "0.5"
+
+# single-instance is desktop-only (not available on mobile platforms)
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-single-instance = "2"
 
 [dev-dependencies]
 tempfile = "3"

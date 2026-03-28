@@ -3,10 +3,16 @@
 @variant dark (&:where(.dark, .dark *));
 
 html, body {
-  background: transparent;
+  background: #fdf6e3;
   font-family: 'JetBrainsMono Nerd Font Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+html.dark, html.dark body {
+  background: #002b36;
 }
 
 .dark .pdf-reader .pdf-page-img {

@@ -606,6 +606,47 @@ pub fn open_file(file_path: String, state: State<'_, DbState>) -> Result<String,
 }
 
 #[tauri::command]
+pub fn import_pdf_register(
+    app: tauri::AppHandle,
+    state: State<'_, DbState>,
+) -> Result<String, String> {
+    use tauri::Manager;
+
+    // Ensure <app_data>/library/ exists and is tracked as a directory
+    let app_data = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
+    let library_dir = app_data.join("library");
+    std::fs::create_dir_all(&library_dir).map_err(|e| {
+        format!("Failed to create library directory: {}", e)
+    })?;
+
+    let lib_path_str = library_dir.to_string_lossy().to_string();
+    let conn = get_db(&state)?;
+
+    // Insert directory if not already tracked
+    match conn.query_row(
+        "SELECT id FROM directories WHERE path = ?1",
+        rusqlite::params![lib_path_str],
+        |row| row.get::<_, i64>(0),
+    ) {
+        Ok(_) => {}
+        Err(rusqlite::Error::QueryReturnedNoRows) => {
+            conn.execute(
+                "INSERT INTO directories (path, label) VALUES (?1, ?2)",
+                rusqlite::params![lib_path_str, "Library"],
+            )
+            .map_err(|e| e.to_string())?;
+            let _ = ensure_axiomatic_dir(&lib_path_str);
+        }
+        Err(e) => return Err(e.to_string()),
+    };
+
+    Ok(lib_path_str)
+}
+
+#[tauri::command]
 pub fn get_pending_file(state: State<'_, PendingFile>) -> Option<String> {
     state.0.lock().ok().and_then(|mut f| f.take())
 }

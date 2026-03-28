@@ -1,6 +1,8 @@
 import { invoke } from '@tauri-apps/api/core'
 import { memo, useEffect, useRef, useState } from 'react'
 import { acquireSlot } from '../lib/thumbnail-queue'
+import { buildPdfiumUrl } from '../lib/pdfium-url'
+import { getPlatformInfo } from '../lib/platform'
 import type { DocumentInfo } from '../hooks/useDocument'
 
 interface Props {
@@ -70,7 +72,6 @@ const PageTile = memo(function PageTile({
 
   const tileWidth = 120
   const tileHeight = tileWidth / aspectRatio
-  const encodedPath = encodeURIComponent(fullPath)
 
   return (
     <button
@@ -85,7 +86,7 @@ const PageTile = memo(function PageTile({
     >
       {visible && cached ? (
         <img
-          src={`pdfium://localhost/render?path=${encodedPath}&page=${pageNum}&width=${tileWidth}&dpr=1`}
+          src={buildPdfiumUrl({ path: fullPath, page: pageNum, width: tileWidth, dpr: 1 }, getPlatformInfo().os)}
           width={tileWidth}
           height={tileHeight}
           alt={`Page ${pageNum}`}

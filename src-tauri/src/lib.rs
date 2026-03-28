@@ -1,5 +1,6 @@
 mod commands;
 mod db;
+mod folder_picker;
 mod highlight_commands;
 mod json_storage;
 mod models;
@@ -16,8 +17,11 @@ use pdf_models::new_shared_render_cache;
 use pdfium_render::prelude::*;
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
-use tauri::{Emitter, Manager};
+use tauri::Manager;
+#[cfg(not(mobile))]
+use tauri::Emitter;
 
+#[cfg(not(mobile))]
 fn find_pdf_in_args(args: &[String]) -> Option<String> {
     for arg in args.iter().skip(1) {
         // Skip flags
@@ -40,12 +44,14 @@ fn find_pdf_in_args(args: &[String]) -> Option<String> {
     None
 }
 
+#[cfg(not(mobile))]
 fn handle_file_open(app: &tauri::AppHandle, args: &[String]) {
     if let Some(path) = find_pdf_in_args(args) {
         let _ = app.emit("open-file", path);
     }
 }
 
+#[cfg(not(mobile))]
 fn pdfium_lib_name() -> &'static str {
     if cfg!(target_os = "macos") {
         "libpdfium.dylib"
@@ -67,14 +73,21 @@ pub fn run() {
     let cache_protocol = Arc::clone(&render_cache);
     let cache_render = Arc::clone(&render_cache);
 
-    tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+    let mut builder = tauri::Builder::default();
+
+    // Single-instance plugin is desktop-only (not available on mobile)
+    #[cfg(not(mobile))]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             handle_file_open(app, &args);
-            // Focus the main window
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.set_focus();
             }
-        }))
+        }));
+    }
+
+    builder
+        .plugin(folder_picker::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .register_asynchronous_uri_scheme_protocol("pdfium", move |_ctx, request, responder| {
@@ -97,61 +110,82 @@ pub fn run() {
             let conn = db::init_db(&db_path).expect("failed to init database");
             app.manage(DbState(Mutex::new(conn)));
 
-            // Check CLI args for a PDF file path
-            let args: Vec<String> = std::env::args().collect();
-            let pending = find_pdf_in_args(&args);
+            // Check CLI args for a PDF file path (desktop only)
+            #[cfg(not(mobile))]
+            let pending = {
+                let args: Vec<String> = std::env::args().collect();
+                find_pdf_in_args(&args)
+            };
+            #[cfg(mobile)]
+            let pending: Option<String> = None;
             app.manage(PendingFile(Mutex::new(pending)));
 
-            // Find PDFium shared library
-            let lib_name = pdfium_lib_name();
-            let lib_path = app
-                .path()
-                .resource_dir()
-                .ok()
-                .and_then(|d| {
-                    // Bundled: tauri preserves the resources/ subdirectory
-                    let nested = d.join("resources").join(lib_name);
-                    let flat = d.join(lib_name);
-                    if nested.exists() {
-                        Some(nested)
-                    } else if flat.exists() {
-                        Some(flat)
-                    } else {
-                        None
-                    }
-                })
-                .or_else(|| {
-                    // Development fallback paths
-                    [
-                        std::path::PathBuf::from("resources").join(lib_name),
-                        std::path::PathBuf::from("src-tauri/resources").join(lib_name),
-                    ]
-                    .into_iter()
-                    .find(|p| p.exists())
-                })
-                .unwrap_or_else(|| {
-                    log::warn!(
-                        "PDFium library ({}) not found — PDF rendering will fail. \
-                         Download from https://github.com/bblanchon/pdfium-binaries",
-                        lib_name
-                    );
-                    std::path::PathBuf::from(lib_name)
-                });
+            // PDFium initialization: find and verify the shared library.
+            // Desktop: search resource_dir and dev fallback paths.
+            // Mobile (Android): libpdfium.so is bundled in the APK via jniLibs;
+            // dlopen("libpdfium.so") resolves it from the app's native lib dir.
+            #[cfg(not(mobile))]
+            let lib_path = {
+                let lib_name = pdfium_lib_name();
+                let path = app
+                    .path()
+                    .resource_dir()
+                    .ok()
+                    .and_then(|d| {
+                        let nested = d.join("resources").join(lib_name);
+                        let flat = d.join(lib_name);
+                        if nested.exists() {
+                            Some(nested)
+                        } else if flat.exists() {
+                            Some(flat)
+                        } else {
+                            None
+                        }
+                    })
+                    .or_else(|| {
+                        [
+                            std::path::PathBuf::from("resources").join(lib_name),
+                            std::path::PathBuf::from("src-tauri/resources").join(lib_name),
+                        ]
+                        .into_iter()
+                        .find(|p| p.exists())
+                    })
+                    .unwrap_or_else(|| {
+                        log::warn!(
+                            "PDFium library ({}) not found — PDF rendering will fail. \
+                             Download from https://github.com/bblanchon/pdfium-binaries",
+                            lib_name
+                        );
+                        std::path::PathBuf::from(lib_name)
+                    });
 
-            log::info!("Loading PDFium from {:?}", lib_path);
+                log::info!("Loading PDFium from {:?}", path);
+                Pdfium::bind_to_library(&path)
+                    .map_err(|e| {
+                        log::error!("Failed to bind to PDFium library at {:?}: {:?}", path, e);
+                        format!("Failed to bind to PDFium: {:?}", e)
+                    })?;
+                log::info!("PDFium library verified");
+                path
+            };
 
-            // Verify PDFium library can be loaded (fail fast with clear error).
-            Pdfium::bind_to_library(&lib_path)
-                .map_err(|e| {
-                    log::error!("Failed to bind to PDFium library at {:?}: {:?}", lib_path, e);
-                    format!("Failed to bind to PDFium: {:?}", e)
-                })?;
-            log::info!("PDFium library verified");
+            #[cfg(mobile)]
+            let lib_path = {
+                // On Android, libpdfium.so is packaged in the APK via jniLibs.
+                // dlopen resolves bare "libpdfium.so" from the app's native lib directory.
+                let path = std::path::PathBuf::from("libpdfium.so");
+                log::info!("Loading PDFium from bundled shared library");
+                Pdfium::bind_to_library(&path)
+                    .map_err(|e| {
+                        log::error!("Failed to bind to bundled PDFium: {:?}", e);
+                        format!("Failed to bind to PDFium: {:?}", e)
+                    })?;
+                log::info!("PDFium library verified");
+                path
+            };
 
-            // Spawn the PDF render worker pool.
-            // Each worker creates its own Pdfium instance (Pdfium is !Send+!Sync).
             let _render_workers = pdf_engine::run_pool(
-                rx, lib_path, gen_render, cache_render, pdf_engine::RENDER_WORKERS,
+                rx, lib_path, gen_render, cache_render, pdf_engine::worker_count(),
             );
 
             app.manage(PdfState {
@@ -188,6 +222,8 @@ pub fn run() {
             commands::open_url,
             commands::get_platform,
             commands::open_file,
+            commands::import_pdf_register,
+            folder_picker::pick_folder,
             commands::get_pending_file,
             commands::get_all_progress,
             commands::save_progress,

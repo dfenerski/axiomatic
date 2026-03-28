@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 
 // Re-import fresh module for each test to reset module-level state
 let acquireSlot: typeof import('../thumbnail-queue').acquireSlot
+let setMaxConcurrent: typeof import('../thumbnail-queue').setMaxConcurrent
 
 beforeEach(async () => {
   // Dynamic import with cache-busting isn't possible in vitest easily,
@@ -9,6 +10,9 @@ beforeEach(async () => {
   // Import once and ensure all slots are released between tests.
   const mod = await import('../thumbnail-queue')
   acquireSlot = mod.acquireSlot
+  setMaxConcurrent = mod.setMaxConcurrent
+  // Reset to default for each test
+  setMaxConcurrent(3)
 })
 
 describe('thumbnail-queue', () => {
@@ -96,6 +100,29 @@ describe('thumbnail-queue', () => {
     r3()
     r4()
     r5()
+  })
+
+  it('setMaxConcurrent(2) limits to 2 concurrent slots', async () => {
+    setMaxConcurrent(2)
+
+    const r1 = await acquireSlot()
+    const r2 = await acquireSlot()
+
+    let thirdGranted = false
+    const thirdPromise = acquireSlot().then((r) => {
+      thirdGranted = true
+      return r
+    })
+
+    await Promise.resolve()
+    expect(thirdGranted).toBe(false)
+
+    r1()
+    const r3 = await thirdPromise
+    expect(thirdGranted).toBe(true)
+
+    r2()
+    r3()
   })
 
   it('release triggers next queued item', async () => {

@@ -44,3 +44,12 @@ coverage/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Android generated build artifacts (keep project template, exclude binaries)
+src-tauri/gen/android/app/src/main/assets/resources/
+src-tauri/gen/android/app/src/main/jniLibs/
+src-tauri/gen/android/axiomatic/
+src-tauri/gen/android/.gradle/
+src-tauri/gen/android/app/build/
+src-tauri/gen/android/build/
+src-tauri/gen/android/buildSrc/.gradle/

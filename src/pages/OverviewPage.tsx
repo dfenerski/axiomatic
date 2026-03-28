@@ -30,7 +30,7 @@ interface MenuState {
 
 export function OverviewPage() {
   const { textbooks, loading, refresh } = useTextbooks()
-  const { directories, add: addDir, remove: removeDir } = useDirectories()
+  const { directories, add: addDir, remove: removeDir, error: dirError } = useDirectories()
   const dirPaths = useMemo(() => directories.map((d) => d.path), [directories])
   const { progress } = useProgress(dirPaths)
   const { starred, toggle } = useStarred(textbooks)
@@ -265,6 +265,11 @@ export function OverviewPage() {
         >
           Attach Directory
         </button>
+        {dirError && (
+          <p className="mt-2 max-w-xs break-all rounded bg-red-100 px-3 py-2 text-xs text-red-700 dark:bg-red-900/30 dark:text-red-300">
+            {dirError}
+          </p>
+        )}
       </div>
     )
   }
@@ -306,7 +311,7 @@ export function OverviewPage() {
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col bg-[#fdf6e3] dark:bg-[#002b36]">
-      <div className="flex h-10 shrink-0 items-center border-b border-[#eee8d5] bg-[#fdf6e3] px-3 dark:border-[#073642] dark:bg-[#002b36]">
+      <div className="flex h-10 shrink-0 items-center overflow-x-auto border-b border-[#eee8d5] bg-[#fdf6e3] px-2 dark:border-[#073642] dark:bg-[#002b36]">
         <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
           <button
             onClick={() => setExplorerOpen((o) => !o)}
@@ -388,7 +393,7 @@ export function OverviewPage() {
                   }
                 }}
                 placeholder="Filter books…"
-                className="h-7 w-48 rounded border border-[#93a1a1] bg-[#fdf6e3] pl-2 pr-7 text-sm text-[#073642] outline-none focus:border-blue-400 dark:border-[#073642] dark:bg-[#073642] dark:text-[#eee8d5] dark:focus:border-[#268bd2]"
+                className="h-7 w-28 rounded border border-[#93a1a1] bg-[#fdf6e3] pl-2 pr-7 text-sm text-[#073642] outline-none focus:border-blue-400 sm:w-48 dark:border-[#073642] dark:bg-[#073642] dark:text-[#eee8d5] dark:focus:border-[#268bd2]"
                 autoFocus
               />
               {filterQuery && (

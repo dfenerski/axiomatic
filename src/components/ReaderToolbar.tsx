@@ -152,7 +152,7 @@ export function ReaderToolbar({
                     }
                   }}
                   placeholder="Search…"
-                  className="h-7 w-48 rounded border border-[#93a1a1] bg-[#fdf6e3] px-2 text-sm text-[#073642] outline-none focus:border-blue-400 dark:border-[#073642] dark:bg-[#073642] dark:text-[#eee8d5] dark:focus:border-[#268bd2]"
+                  className="h-7 w-28 rounded border border-[#93a1a1] bg-[#fdf6e3] px-2 text-sm text-[#073642] outline-none focus:border-blue-400 sm:w-48 dark:border-[#073642] dark:bg-[#073642] dark:text-[#eee8d5] dark:focus:border-[#268bd2]"
                   autoFocus
                 />
               </div>
