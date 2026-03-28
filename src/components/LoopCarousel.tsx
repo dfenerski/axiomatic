@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { EditorView } from '@codemirror/view'
 import type { Snip } from '../hooks/useSnips'
 import { useNotes, useNoteContent } from '../hooks/useNotes'
 import { NotesPanel } from './NotesPanel'
 import { ZoomableSnipImage } from './ZoomableSnipImage'
+import { useSwipe } from '../hooks/useSwipe'
+import { usePlatform } from '../lib/platform'
 
 interface LoopCarouselProps {
   snips: Snip[]
@@ -21,6 +23,8 @@ interface LoopCarouselProps {
   noXp?: boolean
   /** Start at this index instead of 0 */
   initialIndex?: number
+  /** Map for cross-device snip path resolution */
+  pathMap?: Map<string, string>
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -42,10 +46,13 @@ export function LoopCarousel({
   viewMode,
   noXp,
   initialIndex,
+  pathMap,
 }: LoopCarouselProps) {
   const [notesOpen, setNotesOpen] = useState(false)
   const editorRef = useRef<EditorView | null>(null)
+  const cardAreaRef = useRef<HTMLDivElement>(null)
   const { ensureNote, setNote } = useNotes()
+  const platform = usePlatform()
 
   const [isShuffled, setIsShuffled] = useState(shuffled)
 
@@ -116,6 +123,13 @@ export function LoopCarousel({
     setRevealed(viewMode === true)
   }, [isShuffled, snips, viewMode])
 
+  const swipeHandlers = useMemo(() => ({
+    onSwipeLeft: handleNext,
+    onSwipeRight: handlePrev,
+    onTap: handleReveal,
+  }), [handleNext, handlePrev, handleReveal])
+  useSwipe(cardAreaRef, swipeHandlers)
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ctrl+L: toggle notes panel
@@ -181,9 +195,9 @@ export function LoopCarousel({
 
   return (
     <div className="flex flex-1">
-      <div className="flex flex-1 flex-col items-center justify-center gap-6 bg-[#fdf6e3] p-8 dark:bg-[#002b36]">
+      <div ref={cardAreaRef} className="flex min-h-0 flex-1 flex-col items-center gap-4 overflow-y-auto bg-[#fdf6e3] p-4 sm:justify-center sm:gap-6 sm:p-8 dark:bg-[#002b36]">
         {/* Header */}
-        <div className="flex w-full max-w-2xl items-center justify-between">
+        <div className="flex w-full max-w-full items-center justify-between sm:max-w-2xl">
           <span className="text-sm text-[#93a1a1] dark:text-[#586e75]">
             {index + 1} / {orderedSnips.length}
           </span>
@@ -211,14 +225,22 @@ export function LoopCarousel({
           </div>
           <button
             onClick={onExit}
-            className="text-sm text-[#93a1a1] hover:text-[#657b83] dark:text-[#586e75] dark:hover:text-[#93a1a1]"
+            className="min-h-[44px] min-w-[44px] text-sm text-[#93a1a1] hover:text-[#657b83] dark:text-[#586e75] dark:hover:text-[#93a1a1]"
+            aria-label="Exit carousel"
           >
-            ESC to exit
+            {platform.isMobile ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
+              </svg>
+            ) : (
+              'ESC to exit'
+            )}
           </button>
         </div>
 
         {/* Card */}
-        <div className={`flex w-full flex-col items-center gap-4 rounded-lg border border-[#eee8d5] bg-white p-8 shadow-sm dark:border-[#073642] dark:bg-[#073642] ${revealed ? 'max-w-[90vw]' : 'max-w-2xl'}`}>
+        <div className={`flex w-full flex-col items-center gap-4 overflow-hidden rounded-lg border border-[#eee8d5] bg-white p-4 shadow-sm sm:p-8 dark:border-[#073642] dark:bg-[#073642] ${revealed ? 'max-w-full' : 'max-w-full sm:max-w-2xl'}`}>
           <h2 className="text-center text-2xl font-semibold text-[#657b83] dark:text-[#93a1a1]">
             {current.label}
           </h2>
@@ -227,7 +249,7 @@ export function LoopCarousel({
           </p>
 
           {revealed ? (
-            <ZoomableSnipImage snip={current} maxHeight="80vh" globalShortcuts />
+            <ZoomableSnipImage snip={current} maxHeight="60vh" globalShortcuts pathMap={pathMap} />
           ) : (
             <button
               onClick={handleReveal}
@@ -242,15 +264,29 @@ export function LoopCarousel({
         <div className="flex gap-4">
           <button
             onClick={handlePrev}
-            className="rounded px-4 py-2 text-sm text-[#657b83] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
+            aria-label="Previous"
+            className="min-h-[44px] min-w-[44px] rounded px-4 py-2 text-sm text-[#657b83] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
           >
-            Prev (k)
+            {platform.isMobile ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            ) : (
+              'Prev (k)'
+            )}
           </button>
           <button
             onClick={handleNext}
-            className="rounded px-4 py-2 text-sm text-[#657b83] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
+            aria-label="Next"
+            className="min-h-[44px] min-w-[44px] rounded px-4 py-2 text-sm text-[#657b83] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
           >
-            Next (j)
+            {platform.isMobile ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            ) : (
+              'Next (j)'
+            )}
           </button>
         </div>
       </div>

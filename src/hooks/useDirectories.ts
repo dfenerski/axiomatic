@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
+import { getPlatformInfo } from '../lib/platform'
 
 export interface Directory {
   id: number
@@ -11,6 +12,7 @@ export interface Directory {
 
 export function useDirectories() {
   const [directories, setDirectories] = useState<Directory[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     try {
@@ -27,13 +29,31 @@ export function useDirectories() {
   }, [refresh])
 
   const add = useCallback(async () => {
-    const selected = await open({ directory: true, multiple: false })
-    if (!selected) return null
+    setError(null)
     try {
+      const { isMobile } = getPlatformInfo()
+      let selected: string | null = null
+
+      if (isMobile) {
+        // Mobile: use native Android folder picker via our custom plugin
+        selected = await invoke<string>('pick_folder')
+      } else {
+        // Desktop: use tauri-plugin-dialog
+        selected = await open({ directory: true, multiple: false }) as string | null
+      }
+
+      if (!selected) {
+        return null
+      }
       const dir = await invoke<Directory>('add_directory', { path: selected })
       await refresh()
       return dir
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      // Don't show error for user cancellation
+      if (!msg.includes('cancelled') && !msg.includes('canceled')) {
+        setError(msg)
+      }
       console.error('Failed to add directory:', err)
       return null
     }
@@ -51,5 +71,7 @@ export function useDirectories() {
     [refresh],
   )
 
-  return { directories, add, remove, refresh }
+  const clearError = useCallback(() => setError(null), [])
+
+  return { directories, add, remove, refresh, error, clearError }
 }

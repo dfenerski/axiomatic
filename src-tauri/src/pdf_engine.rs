@@ -7,6 +7,15 @@ use crossbeam_channel::Receiver;
 
 pub const RENDER_WORKERS: usize = 4;
 
+/// Returns the worker count for the current platform: 2 on mobile, 4 on desktop.
+pub fn worker_count() -> usize {
+    if cfg!(any(target_os = "android", target_os = "ios")) {
+        2
+    } else {
+        RENDER_WORKERS
+    }
+}
+
 use image::codecs::jpeg::JpegEncoder;
 use pdfium_render::prelude::*;
 
@@ -613,6 +622,12 @@ mod tests {
     #[test]
     fn test_render_workers_constant() {
         assert_eq!(RENDER_WORKERS, 4);
+    }
+
+    #[test]
+    fn test_worker_count_desktop() {
+        // On desktop (Linux/macOS/Windows test runner), worker_count returns 4
+        assert_eq!(worker_count(), 4);
     }
 
     #[test]

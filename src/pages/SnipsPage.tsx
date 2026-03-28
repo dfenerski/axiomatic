@@ -44,6 +44,15 @@ export function SnipsPage() {
   } = useAllSnips(directories)
 
   const dirPaths = useMemo(() => directories.map((d) => d.path), [directories])
+
+  // Build filename → full_path map for cross-device snip rendering
+  const pathMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const tb of textbooks) {
+      map.set(tb.full_path, tb.full_path)
+    }
+    return map
+  }, [textbooks])
   const { defs: tagDefs, createDef, deleteDef, renameDef, recolorDef } = useSnipTagDefs(dirPaths)
 
   // Build a color lookup from tag defs
@@ -361,7 +370,7 @@ export function SnipsPage() {
   return (
     <div className="relative flex min-h-0 flex-1 flex-col bg-[#fdf6e3] dark:bg-[#002b36]">
       {/* Toolbar */}
-      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-[#eee8d5] bg-[#fdf6e3] px-3 dark:border-[#073642] dark:bg-[#002b36]">
+      <div className="flex h-10 shrink-0 items-center gap-1 overflow-x-auto border-b border-[#eee8d5] bg-[#fdf6e3] px-2 dark:border-[#073642] dark:bg-[#002b36]">
         <button
           onClick={() => navigate('/')}
           className="shrink-0 rounded p-1.5 text-[#657b83] hover:bg-[#eee8d5] dark:text-[#93a1a1] dark:hover:bg-[#073642]"
@@ -400,7 +409,7 @@ export function SnipsPage() {
             </svg>
           </button>
           {tagDropdownOpen && uniqueTags.length > 0 && (
-            <div className="absolute left-0 top-8 z-30 w-56 rounded-md border border-[#eee8d5] bg-[#fdf6e3] py-1 shadow-lg dark:border-[#073642] dark:bg-[#073642]">
+            <div className="absolute left-0 top-8 z-30 w-48 rounded-md border border-[#eee8d5] bg-[#fdf6e3] py-1 shadow-lg sm:w-56 dark:border-[#073642] dark:bg-[#073642]">
               <div className="px-2 pb-1">
                 <input
                   type="text"
@@ -516,7 +525,7 @@ export function SnipsPage() {
               }
             }}
             placeholder="Search snips... (/)"
-            className="h-7 w-52 rounded border border-[#93a1a1]/30 bg-[#fdf6e3] pl-2 pr-7 text-sm text-[#073642] outline-none focus:border-[#268bd2] dark:border-[#073642] dark:bg-[#073642] dark:text-[#eee8d5] dark:focus:border-[#268bd2]"
+            className="h-7 w-28 rounded border border-[#93a1a1]/30 bg-[#fdf6e3] pl-2 pr-7 text-sm text-[#073642] outline-none focus:border-[#268bd2] sm:w-52 dark:border-[#073642] dark:bg-[#073642] dark:text-[#eee8d5] dark:focus:border-[#268bd2]"
           />
           {search && (
             <button
@@ -674,7 +683,7 @@ export function SnipsPage() {
                     <tr className="border-b border-[#eee8d5] bg-[#eee8d5]/30 dark:border-[#073642] dark:bg-[#073642]/30">
                       <td colSpan={selectMode ? 6 : 5} className="px-4 py-4">
                         <div className="flex gap-6">
-                          <ZoomableSnipImage snip={snip} maxHeight="200px" />
+                          <ZoomableSnipImage snip={snip} maxHeight="200px" pathMap={pathMap} />
                           <div className="flex flex-col gap-2 text-sm text-[#586e75] dark:text-[#93a1a1]">
                             <p><span className="font-medium">Source:</span> {slugToTitle[snip.slug] ?? snip.slug}</p>
                             <p><span className="font-medium">Page:</span> {snip.page + 1}</p>
@@ -849,6 +858,7 @@ export function SnipsPage() {
             onExit={() => setLoopOpen(false)}
             shuffled={false}
             noXp={true}
+            pathMap={pathMap}
           />
         </div>
       )}
@@ -878,6 +888,7 @@ export function SnipsPage() {
             shuffled={false}
             viewMode={true}
             initialIndex={viewStartIndex}
+            pathMap={pathMap}
           />
         </div>
       )}

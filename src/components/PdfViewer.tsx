@@ -9,10 +9,11 @@ import { SnipOverlay } from './SnipOverlay'
 import { invoke } from '@tauri-apps/api/core'
 import { save } from '@tauri-apps/plugin-dialog'
 import { pruneWarmPages } from '../lib/warm-pages'
+import { buildPdfiumUrl } from '../lib/pdfium-url'
+import { getPlatformInfo } from '../lib/platform'
+import { getRenderConfig } from '../lib/render-config'
 
-const BASE_WIDTH = 800
 const PAGE_GAP = 16
-const BUFFER = 3
 
 const HIGHLIGHT_COLORS = [
   { label: 'Yellow', color: '#facc15' },
@@ -101,7 +102,8 @@ const PdfViewerInner = React.forwardRef<PdfViewerHandle, Props>(function PdfView
   const [clipStartPage, setClipStartPage] = useState<number | null>(null)
   const visibleRangeRef = useRef({ start: 1, end: 1 })
 
-  const dpr = typeof window !== 'undefined' ? window.devicePixelRatio : 1
+  const renderConfig = getRenderConfig(getPlatformInfo().os)
+  const dpr = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio, renderConfig.maxDpr) : 1
 
   // committedZoom controls layout + image rendering.
   // Intermediate zoom ticks are handled imperatively via applyZoom (no re-render).
@@ -122,7 +124,7 @@ const PdfViewerInner = React.forwardRef<PdfViewerHandle, Props>(function PdfView
   const [warmTick, setWarmTick] = useState(0)
   const pageDebounceRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
-  const layoutWidth = BASE_WIDTH * committedZoom
+  const layoutWidth = renderConfig.baseWidth * committedZoom
 
   // Pre-compute cumulative page offsets from committed zoom dimensions.
   const pageOffsets = useMemo(() => {
@@ -175,7 +177,7 @@ const PdfViewerInner = React.forwardRef<PdfViewerHandle, Props>(function PdfView
       clearTimeout(commitTimerRef.current)
       commitTimerRef.current = setTimeout(async () => {
         const seq = ++prerenderSeqRef.current
-        const targetWidth = Math.round(BASE_WIDTH * newZoom)
+        const targetWidth = Math.round(renderConfig.baseWidth * newZoom)
         const range = visibleRangeRef.current
         const pagesToRender: number[] = []
         for (let p = range.start; p <= range.end; p++) {
@@ -192,7 +194,7 @@ const PdfViewerInner = React.forwardRef<PdfViewerHandle, Props>(function PdfView
           // Render thread may have preempted — still commit
         }
         if (seq !== prerenderSeqRef.current) return
-        const targetW = Math.round(BASE_WIDTH * newZoom)
+        const targetW = Math.round(renderConfig.baseWidth * newZoom)
         for (const p of pagesToRender) {
           warmPagesRef.current.add(`${p}:${targetW}`)
         }
@@ -250,8 +252,8 @@ const PdfViewerInner = React.forwardRef<PdfViewerHandle, Props>(function PdfView
       const last = pageAtOffset(offsets, scrollTop + viewH)
 
       setVisibleRange((prev) => {
-        const newStart = Math.max(1, first - BUFFER)
-        const newEnd = Math.min(numPages, last + BUFFER)
+        const newStart = Math.max(1, first - renderConfig.buffer)
+        const newEnd = Math.min(numPages, last + renderConfig.buffer)
         if (prev.start === newStart && prev.end === newEnd) return prev
         const next = { start: newStart, end: newEnd }
         visibleRangeRef.current = next
@@ -630,8 +632,6 @@ const PdfViewerInner = React.forwardRef<PdfViewerHandle, Props>(function PdfView
     setContextMenu(null)
   }, [])
 
-  const encodedPath = encodeURIComponent(fullPath)
-
   // Memoize page list — stable during zoom (all deps are committedZoom-based)
   const pages = useMemo(
     () =>
@@ -664,7 +664,7 @@ const PdfViewerInner = React.forwardRef<PdfViewerHandle, Props>(function PdfView
             >
               {warmPagesRef.current.has(`${pageNum}:${Math.round(layoutWidth)}`) ? (
                 <img
-                  src={`pdfium://localhost/render?path=${encodedPath}&page=${pageNum}&width=${Math.round(layoutWidth)}&dpr=${dpr}`}
+                  src={buildPdfiumUrl({ path: fullPath, page: pageNum, width: Math.round(layoutWidth), dpr }, getPlatformInfo().os)}
                   alt={`Page ${pageNum}`}
                   className="pdf-page-img block h-full w-full"
                   draggable={false}
@@ -728,7 +728,7 @@ const PdfViewerInner = React.forwardRef<PdfViewerHandle, Props>(function PdfView
           )
         },
       ),
-    [visibleRange, layoutWidth, pageOffsets, encodedPath, dpr, fetchTick, highlightsForPage, handleContextMenu, handleLinkClick, clipStartPage, snipMode, onSnipRegion, warmTick],
+    [visibleRange, layoutWidth, pageOffsets, fullPath, dpr, fetchTick, highlightsForPage, handleContextMenu, handleLinkClick, clipStartPage, snipMode, onSnipRegion, warmTick],
   )
 
   /* eslint-disable react-hooks/immutability -- merging local + forwarded ref via callback */

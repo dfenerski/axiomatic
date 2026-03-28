@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo } from 'react'
+
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTextbooks } from '../hooks/useTextbooks'
 import { useSnips } from '../hooks/useSnips'
@@ -16,6 +17,11 @@ export function LoopPage() {
   const { textbooks, loading } = useTextbooks()
   const book = textbooks.find((b) => b.slug === slug)
   const { snips, xp, incrementXp } = useSnips(slug, book?.dir_path)
+  const pathMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const tb of textbooks) map.set(tb.full_path, tb.full_path)
+    return map
+  }, [textbooks])
   const tabSlug = useMemo(() => `loop:${slug}`, [slug])
   const { tabs, openTab, closeTabAndNavigate, closeOtherTabsAndNavigate, selectTab } = useTabNavigation(tabSlug)
 
@@ -86,6 +92,7 @@ export function LoopPage() {
         onIncrementXp={incrementXp}
         onExit={handleExit}
         shuffled={shuffled}
+        pathMap={pathMap}
       />
     </div>
   )

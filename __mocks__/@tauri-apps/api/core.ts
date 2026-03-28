@@ -38,6 +38,7 @@ defaultReturns.set('delete_highlight', null)
 defaultReturns.set('delete_highlight_group', null)
 defaultReturns.set('migrate_slug', null)
 defaultReturns.set('prerender_pages', null)
+defaultReturns.set('get_platform', 'linux')
 
 /**
  * Set a return value for a specific command name.
