@@ -13,11 +13,13 @@ interface Props {
   maxHeight?: string
   /** Whether to bind Ctrl+=/- and Ctrl+wheel globally (only one instance should) */
   globalShortcuts?: boolean
-  /** Map of stored full_path → actual full_path for cross-device portability */
+  /** Map of slug/dir:file → actual full_path for cross-device portability */
   pathMap?: Map<string, string>
+  /** Library directory path for cross-device resolution */
+  dirPath?: string
 }
 
-export function ZoomableSnipImage({ snip, maxHeight = '60vh', globalShortcuts = false, pathMap }: Props) {
+export function ZoomableSnipImage({ snip, maxHeight = '60vh', globalShortcuts = false, pathMap, dirPath }: Props) {
   const [zoom, setZoom] = useState(1)
   const [contentSize, setContentSize] = useState<{ w: number; h: number } | null>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -108,7 +110,7 @@ export function ZoomableSnipImage({ snip, maxHeight = '60vh', globalShortcuts = 
           data-testid="snip-zoom-container"
           style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}
         >
-          <SnipImage snip={snip} className="rounded border border-[#eee8d5] dark:border-[#073642]" onSize={handleSize} pathMap={pathMap} />
+          <SnipImage snip={snip} className="rounded border border-[#eee8d5] dark:border-[#073642]" onSize={handleSize} pathMap={pathMap} dirPath={dirPath} />
         </div>
       </div>
       <div className="flex items-center gap-1">

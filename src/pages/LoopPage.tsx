@@ -19,7 +19,10 @@ export function LoopPage() {
   const { snips, xp, incrementXp } = useSnips(slug, book?.dir_path)
   const pathMap = useMemo(() => {
     const map = new Map<string, string>()
-    for (const tb of textbooks) map.set(tb.full_path, tb.full_path)
+    for (const tb of textbooks) {
+      map.set(tb.slug, tb.full_path)
+      map.set(tb.dir_path + ':' + tb.file, tb.full_path)
+    }
     return map
   }, [textbooks])
   const tabSlug = useMemo(() => `loop:${slug}`, [slug])
@@ -93,6 +96,7 @@ export function LoopPage() {
         onExit={handleExit}
         shuffled={shuffled}
         pathMap={pathMap}
+        dirPath={book?.dir_path}
       />
     </div>
   )

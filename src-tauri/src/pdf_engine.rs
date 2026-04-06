@@ -104,32 +104,28 @@ impl PdfEngine {
         let doc = self.documents.get(path).unwrap();
         let page_count = doc.pages().len() as u32;
 
-        // Read first page dimensions and assume uniform (fast path).
-        // PDFium page loading is expensive for per-page reads on large docs.
-        let dim = if page_count > 0 {
-            let page = doc
-                .pages()
-                .get(0)
-                .map_err(|e| format!("Failed to get page 0: {:?}", e))?;
-            let w = page.width().value;
-            let h = page.height().value;
-            PageDimension {
-                width_pts: w,
-                height_pts: h,
-                aspect_ratio: if h > 0.0 { w / h } else { 1.0 },
-            }
-        } else {
-            PageDimension {
-                width_pts: 612.0,
-                height_pts: 792.0,
-                aspect_ratio: 612.0 / 792.0,
-            }
-        };
+        // Read per-page dimensions via FPDF_GetPageSizeByIndexF (cheap metadata query,
+        // no full page loading — safe even for 500+ page textbooks).
+        let pages = doc
+            .pages()
+            .page_sizes()
+            .map_err(|e| format!("Failed to read page sizes: {:?}", e))?
+            .into_iter()
+            .map(|rect| {
+                let w = rect.width().value;
+                let h = rect.height().value;
+                PageDimension {
+                    width_pts: w,
+                    height_pts: h,
+                    aspect_ratio: if h > 0.0 { w / h } else { 1.0 },
+                }
+            })
+            .collect();
 
         Ok(DocumentInfo {
             doc_id: path.to_string(),
             page_count,
-            pages: vec![dim; page_count as usize],
+            pages,
             title: None,
         })
     }

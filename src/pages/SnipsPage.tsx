@@ -45,11 +45,12 @@ export function SnipsPage() {
 
   const dirPaths = useMemo(() => directories.map((d) => d.path), [directories])
 
-  // Build filename → full_path map for cross-device snip rendering
+  // Build slug → full_path and dir:file → full_path map for snip path resolution
   const pathMap = useMemo(() => {
     const map = new Map<string, string>()
     for (const tb of textbooks) {
-      map.set(tb.full_path, tb.full_path)
+      map.set(tb.slug, tb.full_path)
+      map.set(tb.dir_path + ':' + tb.file, tb.full_path)
     }
     return map
   }, [textbooks])
@@ -683,7 +684,7 @@ export function SnipsPage() {
                     <tr className="border-b border-[#eee8d5] bg-[#eee8d5]/30 dark:border-[#073642] dark:bg-[#073642]/30">
                       <td colSpan={selectMode ? 6 : 5} className="px-4 py-4">
                         <div className="flex gap-6">
-                          <ZoomableSnipImage snip={snip} maxHeight="200px" pathMap={pathMap} />
+                          <ZoomableSnipImage snip={snip} maxHeight="200px" pathMap={pathMap} dirPath={snip.dirPath} />
                           <div className="flex flex-col gap-2 text-sm text-[#586e75] dark:text-[#93a1a1]">
                             <p><span className="font-medium">Source:</span> {slugToTitle[snip.slug] ?? snip.slug}</p>
                             <p><span className="font-medium">Page:</span> {snip.page + 1}</p>

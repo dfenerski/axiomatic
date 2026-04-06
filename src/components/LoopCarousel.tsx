@@ -25,6 +25,8 @@ interface LoopCarouselProps {
   initialIndex?: number
   /** Map for cross-device snip path resolution */
   pathMap?: Map<string, string>
+  /** Library directory path for cross-device resolution */
+  dirPath?: string
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -47,6 +49,7 @@ export function LoopCarousel({
   noXp,
   initialIndex,
   pathMap,
+  dirPath,
 }: LoopCarouselProps) {
   const [notesOpen, setNotesOpen] = useState(false)
   const editorRef = useRef<EditorView | null>(null)
@@ -249,7 +252,7 @@ export function LoopCarousel({
           </p>
 
           {revealed ? (
-            <ZoomableSnipImage snip={current} maxHeight="60vh" globalShortcuts pathMap={pathMap} />
+            <ZoomableSnipImage snip={current} maxHeight="60vh" globalShortcuts pathMap={pathMap} dirPath={dirPath} />
           ) : (
             <button
               onClick={handleReveal}

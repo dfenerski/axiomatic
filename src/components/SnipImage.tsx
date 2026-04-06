@@ -8,12 +8,19 @@ import { getPlatformInfo } from '../lib/platform'
  * any textbook (e.g. snip created on a different device), fall back to
  * matching by filename against the provided path map.
  */
-function resolveSnipPath(snip: Snip, pathMap?: Map<string, string>): string {
+export function resolveSnipPath(snip: Snip, pathMap?: Map<string, string>, dirPath?: string): string {
   if (!pathMap) return snip.full_path
-  // Try exact match first
-  if (pathMap.has(snip.full_path)) return snip.full_path
-  // Fall back to filename match
+  // Primary: look up by slug (unique per book on same device)
+  const bySlug = pathMap.get(snip.slug)
+  if (bySlug) return bySlug
+  // Secondary: dir_path + filename (cross-device, unambiguous when dir is known)
   const fileName = snip.full_path.split('/').pop() ?? snip.full_path.split('\\').pop() ?? ''
+  const resolvedDir = dirPath ?? (snip as unknown as { dirPath?: string }).dirPath
+  if (resolvedDir) {
+    const byDirFile = pathMap.get(resolvedDir + ':' + fileName)
+    if (byDirFile) return byDirFile
+  }
+  // Last resort: first filename match (ambiguous if duplicate filenames across dirs)
   for (const [, fullPath] of pathMap) {
     if (fullPath.endsWith('/' + fileName) || fullPath.endsWith('\\' + fileName)) {
       return fullPath
@@ -22,11 +29,11 @@ function resolveSnipPath(snip: Snip, pathMap?: Map<string, string>): string {
   return snip.full_path
 }
 
-export function SnipImage({ snip, className, onSize, pathMap }: { snip: Snip; className?: string; onSize?: (w: number, h: number) => void; pathMap?: Map<string, string> }) {
+export function SnipImage({ snip, className, onSize, pathMap, dirPath }: { snip: Snip; className?: string; onSize?: (w: number, h: number) => void; pathMap?: Map<string, string>; dirPath?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
-    const resolvedPath = resolveSnipPath(snip, pathMap)
+    const resolvedPath = resolveSnipPath(snip, pathMap, dirPath)
     const url = buildPdfiumUrl({ path: resolvedPath, page: snip.page, width: 800, dpr: 2 }, getPlatformInfo().os)
     const img = new Image()
     img.onload = () => {
