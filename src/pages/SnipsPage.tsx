@@ -68,7 +68,7 @@ export function SnipsPage() {
     _setSearch((prev) => { const next = typeof v === 'function' ? v(prev) : v; _filterCache.search = next; return next })
   }, [])
   const [dirFilter, _setDirFilter] = useState<string>(_filterCache.dirFilter)
-  const setDirFilter = useCallback((v: string) => { _filterCache.dirFilter = v; _setDirFilter(v) }, [])
+  const setDirFilter = useCallback((v: string) => { _filterCache.dirFilter = v; _setDirFilter(v); _filterCache.selectedTags = []; _setSelectedTags([]) }, [])
   const [selectedTags, _setSelectedTags] = useState<string[]>(_filterCache.selectedTags)
   const setSelectedTags = useCallback((v: string[] | ((prev: string[]) => string[])) => {
     _setSelectedTags((prev) => { const next = typeof v === 'function' ? v(prev) : v; _filterCache.selectedTags = next; return next })

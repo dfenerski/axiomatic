@@ -2,7 +2,7 @@
 - [DONE] page counter buggy
 - [DONE] untag does not remove selection
 - [DONE] partial selector should first deselect
-- snip table should show item count
+- [DONE] snip table should show item count
 - jump from snip to pdf page
 - subsequent batch tags should be OR-ed (exception for tags starting with Batch; or handle it in better way)
 - shuffle button bad UX
@@ -13,7 +13,7 @@
 - rename in carousel view
 - when mixing snips between courses: display the tags in the snip (no batch tags)
 - the chime is either random or there isn't singleton cron chime tracker and multiples are dispatched / not cleaned up properly and it randomly goes off.
-- clear snip table tag filters on dir switch
+- [DONE] clear snip table tag filters on dir switch
 - last tab is unclosable
 - no "close to the left/right" for tabs
 - not tab reorder
@@ -28,3 +28,4 @@
 	- progress bar how many snips are solidified per pdf
 	- tick/visual feedback per dir and per pdf for mark and solidification progress respectively
 		- additional status for snips (besides solidified: open and also needs attention; status: solid|open|attention)
+- implement A2A protocol for direct claude code integration within axiomatic

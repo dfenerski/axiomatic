@@ -605,6 +605,26 @@ describe('SnipsPage', () => {
     expect(screen.queryByText('Only T')).not.toBeInTheDocument()
   })
 
+  it('switching directory filter clears selected tags', () => {
+    const snips = [
+      makeSnip({ id: 's1', label: 'Both', tags: ['algebra', 'topology'], created_at: '2024-06-01T00:00:00Z' }),
+      makeSnip({ id: 's2', label: 'Only A', tags: ['algebra'], created_at: '2024-06-02T00:00:00Z' }),
+    ]
+    renderPage(snips)
+
+    // Select a tag filter
+    fireEvent.click(screen.getByText('All tags'))
+    const dropdown = screen.getByPlaceholderText('Search tags...').closest('[class*="absolute"]')!
+    fireEvent.click(within(dropdown as HTMLElement).getByText('topology'))
+    expect(screen.getByText('1 tag')).toBeInTheDocument()
+
+    // Switch directory filter
+    fireEvent.change(screen.getByDisplayValue('All directories'), { target: { value: '/lib' } })
+
+    // Tag filter should be cleared
+    expect(screen.getByText('All tags')).toBeInTheDocument()
+  })
+
   it('row click does not toggle selection while renaming', () => {
     renderPage()
     fireEvent.click(screen.getByLabelText('Toggle select mode'))
