@@ -7,12 +7,12 @@
 - [DONE] subsequent batch tags should be OR-ed (exception for tags starting with Batch; or handle it in better way)
 - [DONE] shuffle button bad UX
 - [DONE] snip table state should persist across app restarts
-- sharper thumbnails in overview page
+- [WONTFIX] sharper thumbnails in overview page
 - [DONE] critical bug: shorter pages than A4 are stretched to fill it
 - [DONE] critical bug: on mobile some snips, e.g pka and mesi point to TML stuff -> snip resolution faulty on mobile
 - [DONE] rename in carousel view
 - when mixing snips between courses: display the tags in the snip (no batch tags)
-- the chime is either random or there isn't singleton cron chime tracker and multiples are dispatched / not cleaned up properly and it randomly goes off.
+- [DONE] the chime is either random or there isn't singleton cron chime tracker and multiples are dispatched / not cleaned up properly and it randomly goes off.
 - [DONE] clear snip table tag filters on dir switch
 - [DONE] last tab is unclosable
 - [DONE] no "close to the left/right" for tabs

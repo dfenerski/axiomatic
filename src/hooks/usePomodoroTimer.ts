@@ -36,8 +36,20 @@ function notify() {
 }
 
 function subscribe(fn: () => void): () => void {
+  const wasEmpty = _listeners.size === 0
   _listeners.add(fn)
-  return () => { _listeners.delete(fn) }
+  // Resume interval if timer was running when all components had unmounted
+  if (wasEmpty && _state.running && _intervalId == null) {
+    _intervalId = setInterval(tick, 1000)
+  }
+  return () => {
+    _listeners.delete(fn)
+    // Pause interval when no components are listening (timer stays "running" in state)
+    if (_listeners.size === 0 && _intervalId != null) {
+      clearInterval(_intervalId)
+      _intervalId = undefined
+    }
+  }
 }
 
 function getSnapshot(): TimerState {
@@ -93,7 +105,7 @@ function stopInterval() {
 function handlePhaseComplete(phase: Phase) {
   stopInterval()
   const cfg = readConfig()
-  if (cfg.audioEnabled) playChime()
+  if (cfg.audioEnabled && _listeners.size > 0) playChime()
 
   if (phase === 'work') {
     const endedAt = new Date().toISOString()
