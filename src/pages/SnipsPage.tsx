@@ -5,6 +5,7 @@ import { invoke } from '@tauri-apps/api/core'
 import type { EditorView } from '@codemirror/view'
 import { useDirectories } from '../hooks/useDirectories'
 import { useDirPaths } from '../hooks/useDirPaths'
+import { usePathMap } from '../hooks/usePathMap'
 import { useTextbooks } from '../hooks/useTextbooks'
 import { useAllSnips } from '../hooks/useSnips'
 import type { SnipWithDir } from '../hooks/useSnips'
@@ -89,15 +90,7 @@ export function SnipsPage() {
 
   const dirPaths = useDirPaths(directories)
 
-  // Build slug → full_path and dir:file → full_path map for snip path resolution
-  const pathMap = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const tb of textbooks) {
-      map.set(tb.slug, tb.full_path)
-      map.set(tb.dir_path + ':' + tb.file, tb.full_path)
-    }
-    return map
-  }, [textbooks])
+  const pathMap = usePathMap(textbooks)
   const { defs: tagDefs, createDef, deleteDef, renameDef, recolorDef } = useSnipTagDefs(dirPaths)
 
   // Build a color lookup from tag defs

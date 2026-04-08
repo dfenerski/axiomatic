@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo } from 'react'
 
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTextbooks } from '../hooks/useTextbooks'
+import { usePathMap } from '../hooks/usePathMap'
 import { useSnips } from '../hooks/useSnips'
 import { useTabNavigation } from '../hooks/useTabs'
 import { LoopCarousel } from '../components/LoopCarousel'
@@ -17,14 +18,7 @@ export function LoopPage() {
   const { textbooks, loading } = useTextbooks()
   const book = textbooks.find((b) => b.slug === slug)
   const { snips, xp, incrementXp, renameSnip } = useSnips(slug, book?.dir_path)
-  const pathMap = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const tb of textbooks) {
-      map.set(tb.slug, tb.full_path)
-      map.set(tb.dir_path + ':' + tb.file, tb.full_path)
-    }
-    return map
-  }, [textbooks])
+  const pathMap = usePathMap(textbooks)
   const tabSlug = useMemo(() => `loop:${slug}`, [slug])
   const { tabs, openTab, closeTabAndNavigate, closeOtherTabsAndNavigate, closeTabsToLeftAndNavigate, closeTabsToRightAndNavigate, selectTab } = useTabNavigation(tabSlug)
 
