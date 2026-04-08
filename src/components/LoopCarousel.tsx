@@ -306,9 +306,19 @@ export function LoopCarousel({
               {current.label}
             </h2>
           )}
-          <p className="text-sm text-[#93a1a1] dark:text-[#586e75]">
-            p. {current.page}
-          </p>
+          {onNavigateToSnip ? (
+            <button
+              onClick={() => onNavigateToSnip(current)}
+              className="text-sm text-[#268bd2] hover:underline"
+              aria-label="Open in reader"
+            >
+              p. {current.page} — open in reader (o)
+            </button>
+          ) : (
+            <p className="text-sm text-[#93a1a1] dark:text-[#586e75]">
+              p. {current.page}
+            </p>
+          )}
 
           {revealed ? (
             <ZoomableSnipImage snip={current} maxHeight="60vh" globalShortcuts pathMap={pathMap} dirPath={dirPath} />
