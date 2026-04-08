@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import type { BookProgress } from '../types/progress'
+import type { BookProgress, BookStatus } from '../types/progress'
 import type { Tag } from '../hooks/useTags'
 import { PdfThumbnail } from './PdfThumbnail'
 
@@ -12,6 +12,7 @@ interface Props {
   starred?: boolean
   selected?: boolean
   tags?: Tag[]
+  bookStatus?: BookStatus
   onToggleStar?: (slug: string) => void
   onContextMenu?: (slug: string, x: number, y: number) => void
 }
@@ -26,6 +27,7 @@ export const BookTile = memo(function BookTile({
   onToggleStar,
   onContextMenu,
   tags,
+  bookStatus,
 }: Props) {
   const progressText = progress
     ? `${progress.currentPage}/${progress.totalPages}`
@@ -51,6 +53,17 @@ export const BookTile = memo(function BookTile({
     >
       <div className="relative">
         <PdfThumbnail fullPath={fullPath} />
+        {bookStatus && bookStatus !== 'open' && (
+          <span className={`absolute top-1.5 left-1.5 z-10 flex h-4 w-4 items-center justify-center rounded-full text-white text-[8px] ${
+            bookStatus === 'done'
+              ? 'bg-[#859900]'
+              : bookStatus === 'need-revisit'
+                ? 'bg-[#cb4b16]'
+                : 'bg-[#268bd2]'
+          }`}>
+            {bookStatus === 'done' ? '\u2713' : bookStatus === 'need-revisit' ? '!' : '\u25B6'}
+          </span>
+        )}
         {progressText && (
           <span className="absolute bottom-2 right-2 rounded bg-black/70 px-2 py-0.5 text-xs font-medium text-white">
             {progressText}
@@ -107,6 +120,7 @@ export const BookTile = memo(function BookTile({
   prev.starred === next.starred &&
   prev.selected === next.selected &&
   prev.tags === next.tags &&
+  prev.bookStatus === next.bookStatus &&
   prev.onToggleStar === next.onToggleStar &&
   prev.onContextMenu === next.onContextMenu &&
   prev.progress?.currentPage === next.progress?.currentPage &&

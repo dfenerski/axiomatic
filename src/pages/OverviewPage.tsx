@@ -10,6 +10,7 @@ import { useVimOverview, type NavSection } from '../hooks/useVimOverview'
 import { useBatchedRender } from '../hooks/useBatchedRender'
 import { useSyncStatus } from '../hooks/useSyncStatus'
 import { useSectionCollapse } from '../hooks/useSectionCollapse'
+import { useBookStatus } from '../hooks/useBookStatus'
 import { TileGrid } from '../components/TileGrid'
 import { BookTile } from '../components/BookTile'
 import { ContextMenu } from '../components/ContextMenu'
@@ -34,6 +35,7 @@ export function OverviewPage() {
   const dirPaths = useMemo(() => directories.map((d) => d.path), [directories])
   const { progress } = useProgress(dirPaths)
   const { starred, toggle } = useStarred(textbooks)
+  const { getStatus, setStatus: setBookStatus } = useBookStatus(dirPaths, progress)
   const { tags, bookTags, createTag, deleteTag, tagBook, untagBook, updateTagColor } = useTags()
   const gridRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
@@ -220,6 +222,10 @@ export function OverviewPage() {
             label: 'Tag',
             action: () => setTagAssignerSlug(book.slug),
           },
+          ...(['open', 'in-progress', 'need-revisit', 'done'] as const).map((s) => ({
+            label: `${getStatus(book.slug) === s ? '\u25CF ' : '  '}${s.charAt(0).toUpperCase() + s.slice(1)}`,
+            action: () => setBookStatus(book.dir_path, book.slug, s),
+          })),
           {
             label: 'Rename',
             action: async () => {
@@ -480,6 +486,7 @@ export function OverviewPage() {
                       onToggleStar={toggle}
                       onContextMenu={handleContextMenu}
                       tags={bookTags[book.slug]}
+                      bookStatus={getStatus(book.slug)}
                     />
                 ))}
               </TileGrid>
@@ -516,6 +523,7 @@ export function OverviewPage() {
                     onToggleStar={toggle}
                     onContextMenu={handleContextMenu}
                     tags={bookTags[book.slug]}
+                    bookStatus={getStatus(book.slug)}
                   />
                 ))}
               </TileGrid>
