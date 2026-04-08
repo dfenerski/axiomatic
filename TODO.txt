@@ -23,9 +23,9 @@
 	- refactor: strategy pattern?
 	- consolidation iteration
 - [DONE] snip table view should also sort based on source
-- no "mark pdf as marked" and "mark snip as solid" and no UI for
-	- progress bar how many pdfs are marked per dir
-	- progress bar how many snips are solidified per pdf
-	- tick/visual feedback per dir and per pdf for mark and solidification progress respectively
-		- additional status for snips (besides solidified: open and also needs attention; status: solid|open|attention)
+- [DONE] no "mark pdf as marked" and "mark snip as solid" and no UI for
+	- [DONE] progress bar how many pdfs are marked per dir
+	- [DONE] progress bar how many snips are solidified per pdf
+	- [DONE] tick/visual feedback per dir and per pdf for mark and solidification progress respectively
+		- [DONE] additional status for snips (besides solidified: open and also needs attention; status: solid|open|attention)
 - implement A2A protocol for direct claude code integration within axiomatic

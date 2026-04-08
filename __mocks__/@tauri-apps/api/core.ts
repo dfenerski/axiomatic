@@ -39,6 +39,11 @@ defaultReturns.set('delete_highlight_group', null)
 defaultReturns.set('migrate_slug', null)
 defaultReturns.set('prerender_pages', null)
 defaultReturns.set('get_platform', 'linux')
+defaultReturns.set('get_all_book_status', {})
+defaultReturns.set('set_book_status', null)
+defaultReturns.set('set_snip_status', null)
+defaultReturns.set('bulk_set_snip_status', null)
+defaultReturns.set('get_snip_status_counts', {})
 
 /**
  * Set a return value for a specific command name.

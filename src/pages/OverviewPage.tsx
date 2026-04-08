@@ -54,6 +54,27 @@ export function OverviewPage() {
   const [showMigrationDialog, setShowMigrationDialog] = useState(false)
   const orphanCheckDone = useRef(false)
 
+  // Snip status counts per directory: dirPath → { slug → [total, solid] }
+  const [snipCounts, setSnipCounts] = useState<Record<string, Record<string, [number, number]>>>({})
+  useEffect(() => {
+    if (dirPaths.length === 0) return
+    let cancelled = false
+    Promise.all(
+      dirPaths.map((dp) =>
+        invoke<Record<string, [number, number]>>('get_snip_status_counts', { dirPath: dp })
+          .then((counts) => [dp, counts] as const)
+          .catch(() => [dp, {}] as const),
+      ),
+    ).then((results) => {
+      if (cancelled) return
+      const map: Record<string, Record<string, [number, number]>> = {}
+      for (const [dp, counts] of results) map[dp] = counts
+      setSnipCounts(map)
+    })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(dirPaths)])
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       // Escape always closes panes regardless of focus
@@ -508,6 +529,25 @@ export function OverviewPage() {
               </svg>
               <span>{sec.dir.label}</span>
               <span className="text-xs opacity-60">({sec.books.length})</span>
+              {(() => {
+                const booksDone = sec.books.filter((b) => getStatus(b.slug) === 'done').length
+                const dirCounts = snipCounts[sec.dir.path]
+                let snipsTotal = 0, snipsSolid = 0
+                if (dirCounts) for (const [t, s] of Object.values(dirCounts)) { snipsTotal += t; snipsSolid += s }
+                return (
+                  <span className="ml-auto flex items-center gap-3 text-[10px] tabular-nums text-[#93a1a1] dark:text-[#586e75]">
+                    {booksDone > 0 && <span>{booksDone}/{sec.books.length} done</span>}
+                    {snipsTotal > 0 && (
+                      <span className="flex items-center gap-1">
+                        {snipsSolid}/{snipsTotal} solid
+                        <span className="inline-block h-1.5 w-16 rounded-full bg-[#93a1a1]/20">
+                          <span className="block h-full rounded-full bg-[#859900]" style={{ width: `${(snipsSolid / snipsTotal) * 100}%` }} />
+                        </span>
+                      </span>
+                    )}
+                  </span>
+                )
+              })()}
             </button>
             {booksToShow && (
               <TileGrid gridRef={isFirstGrid ? gridRef : undefined}>
